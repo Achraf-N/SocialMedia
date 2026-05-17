@@ -37,13 +37,21 @@ mongodb://localhost:27017
 - `GET /api/shops/{shop_id}/products` returns `{ "shop": {}, "products": [] }`
 - `GET /api/shops/{shop_id}/products/{product_id}` returns `{ "shop": {}, "product": {} }`
 - `PATCH /api/shops/{shop_id}/products/{product_id}`
+- `PATCH /api/shops/{shop_id}/products/{product_id}/image`
 - `DELETE /api/shops/{shop_id}/products/{product_id}`
 - `POST /api/shops/{shop_id}/categories`
 - `GET /api/shops/{shop_id}/categories`
 - `GET /api/shops/{shop_id}/categories/{category_id}`
 - `PATCH /api/shops/{shop_id}/categories/{category_id}`
 - `DELETE /api/shops/{shop_id}/categories/{category_id}`
+- `POST /api/shops/{shop_id}/orders`
+- `GET /api/shops/{shop_id}/orders` returns `{ "shop": {}, "orders": [] }`
+- `GET /api/shops/{shop_id}/orders/{order_id}` returns `{ "shop": {}, "order": {} }`
+- `PATCH /api/shops/{shop_id}/orders/{order_id}`
+- `DELETE /api/shops/{shop_id}/orders/{order_id}`
 
 Protected endpoints read the JWT from the `access_token` HTTP-only cookie. They also accept a `Bearer` token for API clients.
 
-Each owner can create multiple shops. Products and categories are scoped by shop through the `{shop_id}` path parameter.
+Each owner can create multiple shops. Products, categories, and orders are scoped by shop through the `{shop_id}` path parameter.
+
+Product image uploads use multipart form data with an `image` file field. The backend uploads the image to Supabase S3-compatible storage and saves the public URL in the product `image` field.
