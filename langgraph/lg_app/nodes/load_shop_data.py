@@ -1,7 +1,7 @@
 """Node: Load shop data."""
 
-from app.state import ChatState
-from app.data.shop_data import SHOP_PRODUCTS
+from lg_app.state import ChatState
+from lg_app.data.shop_data import SHOP_PRODUCTS
 
 
 def load_shop_data(state: ChatState) -> ChatState:

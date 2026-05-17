@@ -1,6 +1,6 @@
 """Node: Update active product."""
 
-from app.state import ChatState
+from lg_app.state import ChatState
 
 
 def update_active_product(state: ChatState) -> ChatState:

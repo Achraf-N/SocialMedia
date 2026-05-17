@@ -1,8 +1,8 @@
 """Node: Human escalation agent."""
 
-from app.state import ChatState
-from app.llm import get_llm
-from app.llm.prompts import SYSTEM_PROMPTS, PROMPT_TEMPLATES
+from lg_app.state import ChatState
+from lg_app.llm import get_llm
+from lg_app.llm.prompts import SYSTEM_PROMPTS, PROMPT_TEMPLATES
 
 
 def human_needed_agent(state: ChatState) -> ChatState:
