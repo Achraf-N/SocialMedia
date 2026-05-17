@@ -4,6 +4,10 @@ python-dotenv
 langchain
 langgraph
 pydantic
+typing-extensions==4.9.0
+requests
+flask
+flask-cors
+ollama
 pymongo
-boto3
 python-multipart

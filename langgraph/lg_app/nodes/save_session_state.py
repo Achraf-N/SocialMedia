@@ -8,8 +8,14 @@ def save_session_state_node(state: ChatState) -> ChatState:
     """Save session state to memory."""
     save_session_state(
         state["session_id"],
+        shop_id=state.get("shop_id"),
         active_product=state["active_product"],
-        last_intent=state["intent"]
+        current_product_id=state.get("current_product_id"),
+        current_product_name=state.get("current_product_name"),
+        last_intent=state["intent"],
+        extracted_city=state.get("delivery_city"),
+        extracted_address=state.get("delivery_address"),
+        pending_order_json=state.get("pending_order_json"),
     )
     
     if state["active_product"]:
