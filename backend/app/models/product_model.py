@@ -15,7 +15,6 @@ class ProductCreate(BaseModel):
     delivery_time: str = Field(min_length=1, max_length=80)
     brand: str = Field(min_length=1, max_length=120)
     variants: list[str] = Field(default_factory=list)
-    image: str = Field(min_length=1)
 
 
 class ProductUpdate(BaseModel):
@@ -28,7 +27,6 @@ class ProductUpdate(BaseModel):
     delivery_time: str | None = Field(default=None, min_length=1, max_length=80)
     brand: str | None = Field(default=None, min_length=1, max_length=120)
     variants: list[str] | None = None
-    image: str | None = Field(default=None, min_length=1)
 
 
 class ProductResponse(BaseModel):
@@ -42,7 +40,7 @@ class ProductResponse(BaseModel):
     delivery_time: str
     brand: str
     variants: list[str]
-    image: str
+    image: str = ""
     created_at: datetime
     updated_at: datetime
 

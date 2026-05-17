@@ -13,6 +13,7 @@ from app.controllers import (
 from app.core.config import settings
 from app.core.database import create_indexes
 
+
 # Import LangGraph for chat
 try:
     from app.langgraph_bridge import build_graph, ChatState
