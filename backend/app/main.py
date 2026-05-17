@@ -60,7 +60,7 @@ class ChatRequest(BaseModel):
     """Chat request from frontend."""
     message: str
     session_id: str
-    shop_id: Optional[str] = "6a09d431697b1d38b68a50ce"  # Default shop ID
+    shop_id: Optional[str] = "6a09d431697b1d38b68a50ce"  # Default shop ID (mojaa)
 
 
 class ChatResponse(BaseModel):
