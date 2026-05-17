@@ -68,6 +68,8 @@ class ChatResponse(BaseModel):
     response: str
     intent: Optional[str] = None
     active_product: Optional[str] = None
+    current_product: Optional[str] = None
+    delivery_city: Optional[str] = None
     session_id: str
     confidence: float
     steps: List[str] = []
@@ -128,6 +130,13 @@ def chat(request: ChatRequest) -> ChatResponse:
             intent=None,
             product_query=None,
             active_product=None,
+            current_product_id=None,
+            current_product=None,
+            current_product_name=None,
+            delivery_city=None,
+            delivery_address=None,
+            pending_order_json=None,
+            shop_info=None,
             response=None,
             steps=[],
             shop_data=[],
@@ -143,6 +152,8 @@ def chat(request: ChatRequest) -> ChatResponse:
             response=result.get("response", "I couldn't process your request"),
             intent=result.get("intent"),
             active_product=result.get("active_product"),
+            current_product=result.get("current_product"),
+            delivery_city=result.get("delivery_city"),
             session_id=request.session_id,
             confidence=result.get("confidence", 0.0),
             steps=result.get("steps", [])
