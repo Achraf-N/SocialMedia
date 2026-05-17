@@ -1,0 +1,1554 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -3136,
+        976
+      ],
+      "id": "82a6e4c7-529d-47fd-9aba-784cf5ace264",
+      "name": "Telegram Trigger",
+      "webhookId": "263e03b3-cc27-4bce-b2be-f1a3eb277831",
+      "credentials": {
+        "telegramApi": {
+          "id": "TgKr64ZjRVbWBwBn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Code in JavaScript').item.json.intent }}",
+                    "rightValue": "greeting",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "edac68ca-4ad5-4721-807c-9b7b2abe4d2d"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "greeting"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a748ef78-8b02-4c7e-9042-5e83f7bf02ee",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.intent }}",
+                    "rightValue": "product_info_question",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Prodduct Info"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0209b469-49bc-475f-9932-9820db6e3134",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.intent }}",
+                    "rightValue": "unknown",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "unknown"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "84b9338e-0e22-463e-be3a-3e9061bb9300",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.intent }}",
+                    "rightValue": "human_needed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "human needed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f93a5c78-4afe-4f41-99f5-50b30330f30a",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.intent }}",
+                    "rightValue": "price_question",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "price_question"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "5f891e47-9ccf-4d76-96ea-3cfc3468bca8",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.intent }}",
+                    "rightValue": "product_list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "product List"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d57e250c-be28-4610-93a3-6786a542399a",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.intent }}",
+                    "rightValue": "small_talk",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "small_talk"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        544
+      ],
+      "id": "4cb9f7f1-9093-4d52-bf90-98003ab0b2ca",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -1632,
+        1232
+      ],
+      "id": "96241f98-2eb1-4c05-ae82-cfbaf1175c0e",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "o7pvkfJWJDaUz1Zg",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"shop\": {\n    \"name\": \"Beauty Shop Casa\"\n  },\n  \"products\": [\n    {\n      \"name\": \"Serum Vitamin C\",\n      \"price\": 149,\n      \"description\": \"Brightening serum for dark spots\",\n      \"available\": true\n    },\n    {\n      \"name\": \"Hair Oil\",\n      \"price\": 99,\n      \"description\": \"Natural oil for dry hair\",\n      \"available\": true\n    },\n    {\n      \"name\": \"Face Cream\",\n      \"price\": 120,\n      \"description\": \"Hydrating face cream for daily use\",\n      \"available\": false\n    }\n  ],\n  \"delivery\": \"Casablanca 25 MAD, other cities 35 MAD, delivery in 24–72h\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -448,
+        992
+      ],
+      "id": "5012df23-d6e9-4d89-a94d-47bf83eafa15",
+      "name": "shop_data"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Client product query:\n{{ $('Telegram Trigger').item.json.message.text }}\n\nShop data:\n{{ JSON.stringify($json.products, null, 2) }}\n\nResolved product:\n\n{{ $('State Manager').item.json.active_product }}",
+        "options": {
+          "systemMessage": "You must output ONLY valid JSON.\nNo reasoning.\nNo explanation.\nNo markdown.\nNo text before JSON.\nNo text after JSON.\n\nThe first character must be {\nThe last character must be }\n\nDo NOT wrap the result inside \"output\".\n\n--------------------------------\n\nYou are a product information assistant.\n\nUse ONLY the provided shop data.\nNever invent products or product information.\n\nUse conversation memory to understand follow-up questions.\n\nThe user may ask about:\n- description\n- availability\n- benefits\n- versions\n- ingredients\n- usage\n- price\n- comparisons\n- follow-up questions\n\nReferences like:\n- \"it\"\n- \"this\"\n- \"same one\"\n- \"more info\"\n- \"is it available?\"\n- \"how much?\"\n\nshould use previous conversation context.\n\n--------------------------------\n\nReturn EXACTLY this JSON shape:\n\n{\n  \"product_name\": \"string or null\",\n  \"description\": \"string or null\",\n  \"available\": true,\n  \"response\": \"string\",\n  \"found\": true\n}\n\n--------------------------------\n\nRULES:\n\n1. Identify the requested product from:\n- current user message\n- or memory context\n\n2. If the product exists:\n- product_name = exact product name\n- description = exact description from shop data\n- available = true or false from shop data\n- found = true\n\n3. The response field must answer ONLY the user's current question.\n\n4. If information is missing from shop data:\n- do NOT invent information\n- politely say the information is not available yet\n\n5. If the product does not exist:\n{\n  \"product_name\": null,\n  \"description\": null,\n  \"available\": false,\n  \"response\": \"I don’t have confirmed information about this product yet. I’ll check with the shop owner and get back to you.\",\n  \"found\": false\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        656
+      ],
+      "id": "ec64ced9-c0de-417d-aee0-a46345b67ff8",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        288,
+        944
+      ],
+      "id": "5f3893b2-8626-4ce3-89df-aba323927c33",
+      "name": "Ollama Chat Model1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "o7pvkfJWJDaUz1Zg",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "=I’m really sorry for the inconvenience 🙏 I’ll forward your message to the shop owner so they can assist you quickly.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1024,
+        1168
+      ],
+      "id": "5048a8d3-6021-4d92-a817-a0f2b6612ad9",
+      "name": "human_needed",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.response }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        848,
+        640
+      ],
+      "id": "c5afd44b-8add-495b-a429-f5849390fe0a",
+      "name": "Product Info",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "=I didn’t fully understand your request. Could you tell me which product you’re interested in?",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        832,
+        464
+      ],
+      "id": "de1a1a30-6c0f-4c53-9827-47f0c0b1b090",
+      "name": "Unknown",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "Hello! How can I help you today?",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        832,
+        288
+      ],
+      "id": "6201e37e-f68b-4266-af6f-d3d7ce05ea71",
+      "name": "greeting",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Client product query:\n{{ $('Telegram Trigger').item.json.message.text }}\n\nShop data:\n{{ JSON.stringify($json.products, null, 2) }}\n\nResolved product:\n\n\n{{ $('State Manager').item.json.active_product }}\n\nWrite a short answer about the product description and availability.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You must output ONLY valid JSON.\nNo reasoning.\nNo explanation.\nNo extra text.\nNo markdown.\nNo text before JSON.\nNo text after JSON.\n\nThe first character must be {\nThe last character must be }\n\nDo NOT wrap the result inside \"output\".\n\nYou are a product price assistant.\n\nUse ONLY the provided shop data.\nNever invent prices or product information.\n\nUse conversation memory to understand follow-up questions and references.\n\nReferences may include:\n\n* \"it\"\n* \"this\"\n* \"same one\"\n* \"how much?\"\n* \"price?\"\n* \"what does it cost?\"\n* \"and the other one?\"\n\nUse previous conversation context to identify the product if the current message is ambiguous.\n\n---\n\nMEMORY PRIORITY RULES:\n\n* Always prioritize the MOST RECENT conversation context.\n* Recent messages are more important than older messages.\n* Use the latest discussed product unless the user explicitly changes product.\n* Ignore older product descriptions and older assistant responses if they conflict with the latest user request.\n* For price questions, focus ONLY on the latest requested product and latest user intent.\n* Do NOT copy writing style or descriptions from older assistant responses.\n\n---\n\nIMPORTANT:\n\nConversation memory is used ONLY to identify:\n\n* the current product\n* the current user intent\n* recent conversational context\n\nMemory must NOT be used to:\n\n* copy previous assistant wording\n* copy previous product descriptions\n* expand the response unnecessarily\n\n---\n\nIMPORTANT RESPONSE STYLE:\n\nFor price questions:\n\n* response MUST contain ONLY price and availability\n* NEVER include product description\n* NEVER explain product benefits\n* NEVER mention ingredients\n* NEVER mention usage\n\nCorrect example:\n\"Hair Oil is 99 MAD.\"\n\nIncorrect example:\n\"Hair Oil costs 99 MAD. It is a natural oil for dry hair and currently available.\"\n\nIf the user asks only for price:\n\n* keep response extremely short\n* maximum 1 sentence\n\n---\n\nRETURN EXACTLY THIS JSON SHAPE:\n\n{\n\"product_name\": \"string or null\",\n\"price\": 0,\n\"available\": true,\n\"found\": true,\n\"response\": \"string\"\n}\n\n---\n\nRULES:\n\n1. Identify the requested product from:\n\n* current user message\n* or conversation memory\n\n2. If the product EXISTS:\n\n* product_name = exact product name from shop data\n* price = exact product price from shop data\n* available = exact availability from shop data\n* found = true\n\n3. Response rules:\n\nIf available = true:\nresponse = \"{product_name} is {price} MAD.\"\n\nIf available = false:\nresponse = \"{product_name} is {price} MAD, but it is currently unavailable.\"\n\n4. If the product DOES NOT EXIST:\n   {\n   \"product_name\": null,\n   \"price\": 0,\n   \"available\": false,\n   \"found\": false,\n   \"response\": \"I don’t have confirmed information about this product yet. I’ll check with the shop owner and get back to you.\"\n   }\n\n---\n\nSTRICT RULES:\n\n* ALWAYS return valid JSON\n* NEVER return plain text\n* NEVER skip fields\n* NEVER add extra fields\n* NEVER invent a price\n* NEVER explain reasoning\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -16,
+        1376
+      ],
+      "id": "8110c0ec-8580-4e85-8e06-c00ab91b3c45",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        1568
+      ],
+      "id": "e976f93b-1275-47dc-adcf-95439c1d72a3",
+      "name": "Ollama Chat Model2",
+      "credentials": {
+        "ollamaApi": {
+          "id": "o7pvkfJWJDaUz1Zg",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.response }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        576,
+        1360
+      ],
+      "id": "788f3a8a-da6e-4325-adae-5da1e364dada",
+      "name": "Price",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        528,
+        976
+      ],
+      "id": "f52c0903-28bb-4fca-9f41-fb6a2c8c1038",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output;\n\n// Find the last JSON object in the text\nconst start = raw.lastIndexOf('{');\n\nif (start === -1) {\n  throw new Error(\"No JSON found\");\n}\n\nconst jsonString = raw.slice(start);\n\n// Parse JSON\nconst parsed = JSON.parse(jsonString);\n\nreturn [\n  {\n    json: parsed\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1104,
+        944
+      ],
+      "id": "ec643896-a573-4f16-803f-253e2054dcdf",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.output;\n\n// Find the LAST JSON object in the text\nconst matches = raw.match(/\\{[\\s\\S]*?\\}/g);\n\nif (!matches || matches.length === 0) {\n  throw new Error(\"No JSON found\");\n}\n\n// Take the LAST match (usually the real output)\nconst jsonString = matches[matches.length - 1];\n\nreturn [\n  {\n    json: JSON.parse(jsonString)\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        640
+      ],
+      "id": "30782550-ac38-406f-ae35-403e96e78da8",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Client message:\n{{ $('Telegram Trigger').item.json.message.text }}\n\nShop data:\n{{ JSON.stringify($json.products, null, 2) }}\n",
+        "options": {
+          "systemMessage": "IMPORTANT:\nDo NOT think step-by-step.\nDo NOT explain.\nDo NOT analyze.\nReturn JSON immediately.\n\nYou must output ONLY valid JSON.\nNo reasoning.\nNo explanation.\nNo markdown.\nNo text before JSON.\nNo text after JSON.\n\nThe first character must be {\nThe last character must be }\n\nDo NOT wrap the result inside \"output\".\n\nYou are a product catalog assistant.\n\nUse ONLY the provided shop data.\nNever invent products or product information.\n\nYour role is to return product lists and catalog information.\n\n---\n\nIMPORTANT SEMANTIC RULE:\n\nFor this shop:\n\n* \"services\"\n* \"offer\"\n* \"provide\"\n* \"catalog\"\n* \"products\"\n\nall refer to the shop product catalog.\n\nIf the user asks:\n\n* \"What services do you offer?\"\n* \"What do you provide?\"\n* \"What do you sell?\"\n* \"What do you offer?\"\n\nYou MUST return the product catalog from shop data.\n\nNEVER return an empty product list for these requests if products exist.\n\n---\n\nVERY IMPORTANT:\n\nIf shop data contains products:\n\n* products array MUST NOT be empty\n  unless the user explicitly requests a product that does not exist.\n\n---\n\nIMPORTANT:\n\n* ALWAYS include products in the \"products\" array when matching products exist.\n* NEVER return an empty product list if products exist in shop data.\n* NEVER say \"Here is the product list:\" without actually listing products.\n* The \"response\" field must summarize the returned products naturally.\n* The products array is the MOST IMPORTANT part of the output.\n\n---\n\nMATCHING RULES:\n\nIf the user asks:\n\n* all products\n* available products\n* product list\n* catalog\n* products in stock\n* what do you offer\n* what services do you offer\n* what products do you have\n* what do you provide\n* show me your products\n* show available items\n* what can I buy\n* what is available\n\nThen return matching products from shop data.\n\n---\n\nFILTERING RULES:\n\n* If the user asks specifically for available products:\n  include ONLY products where available=true\n\n* Otherwise:\n  include ALL products from shop data\n\n* Products with available=false must still be included unless the user explicitly asks only for available products.\n\n---\n\nRETURN EXACTLY THIS JSON SHAPE:\n\n{\n\"products\": [\n{\n\"name\": \"string\",\n\"price\": 0,\n\"description\": \"string\",\n\"available\": true\n}\n],\n\"response\": \"string\"\n}\n\n---\n\nRESPONSE RULES:\n\n* Keep response short and natural.\n* Mention product names naturally.\n* Do NOT repeat full descriptions inside response.\n* The detailed data already exists inside the products array.\n\nGood example:\n\"Available products include Serum Vitamin C and Hair Oil.\"\n\nGood example:\n\"We currently offer Serum Vitamin C, Hair Oil, and Face Cream.\"\n\nBad example:\n\"Here is the product list.\"\n\n---\n\nIF NO PRODUCTS MATCH:\n\n{\n\"products\": [],\n\"response\": \"I could not find matching products at the moment.\"\n}\n\n---\n\nSTRICT RULES:\n\n* ALWAYS return valid JSON\n* NEVER return plain text\n* NEVER skip fields\n* NEVER invent products\n* NEVER invent prices\n* NEVER invent descriptions\n* NEVER invent availability\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1afc0a8e-a096-45f5-be1e-34f149c0252c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        16,
+        208
+      ],
+      "id": "f72bed72-3432-4ea8-9458-a6002dfcdf27",
+      "name": "Ollama Chat Model3",
+      "credentials": {
+        "ollamaApi": {
+          "id": "o7pvkfJWJDaUz1Zg",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        192,
+        224
+      ],
+      "id": "d03a2f23-9122-4f53-9f51-e6dbbd597ae7",
+      "name": "Simple Memory2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.output;\n\n// Find the final JSON object starting with \"products\"\nconst start = raw.lastIndexOf('{\\n  \"products\"');\n\nif (start === -1) {\n  throw new Error(\"Products JSON not found\");\n}\n\n// Extract JSON substring\nconst jsonString = raw.slice(start);\n\n// Parse JSON\nconst parsed = JSON.parse(jsonString);\n\nreturn [\n  {\n    json: parsed\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "dfc517cf-9a91-4f17-9caf-d4733bce845a",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.response }}\n",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        848,
+        16
+      ],
+      "id": "b6eb6fb7-826b-42ef-be72-0d8b06a378cf",
+      "name": "Product Info1",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"shop\": {\n    \"name\": \"Beauty Shop Casa\"\n  },\n  \"products\": [\n    {\n      \"name\": \"Serum Vitamin C\",\n      \"price\": 149,\n      \"description\": \"Brightening serum for dark spots\",\n      \"available\": true\n    },\n    {\n      \"name\": \"Hair Oil\",\n      \"price\": 99,\n      \"description\": \"Natural oil for dry hair\",\n      \"available\": true\n    },\n    {\n      \"name\": \"Face Cream\",\n      \"price\": 120,\n      \"description\": \"Hydrating face cream for daily use\",\n      \"available\": false\n    }\n  ],\n  \"delivery\": \"Casablanca 25 MAD, other cities 35 MAD, delivery in 24–72h\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2800,
+        944
+      ],
+      "id": "f81f6616-8030-4693-b60e-0838c7d2c2ba",
+      "name": "shop_data1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "You're welcome 😊 ",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        1808
+      ],
+      "id": "51fa213c-5503-4244-855d-475930d93e16",
+      "name": "Small Talk",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Current user message:\n{{ $('Telegram Trigger').item.json.message.text }}\n\nKnown products:\n{{ JSON.stringify($('shop_data1').item.json.products.map(p => p.name), null, 2) }}",
+        "options": {
+          "systemMessage": "IMPORTANT:\nDo NOT think step-by-step.\nDo NOT explain.\nDo NOT analyze.\nReturn JSON immediately.\n\nYou are a smart conversation router for an Instagram/Telegram sales assistant.\n\nYour job is ONLY to determine the next conversation route.\n\nYou must:\n\n* understand the current message\n* use conversation memory\n* understand follow-up replies\n* understand references to previous products or questions\n* understand semantic meaning, not only keywords\n\nYou must NOT:\n\n* answer the user\n* explain reasoning\n* give product information\n* mention prices/descriptions\n* add text before or after JSON\n* wrap JSON inside \"output\"\n\nReturn ONLY valid JSON.\n\nThe first character must be {\nThe last character must be }\n\n---\n\nPossible routes:\n\n* greeting\n* small_talk\n* product_list\n* product_info_question\n* price_question\n* complaint\n* human_needed\n* unknown\n\n---\n\nReturn EXACTLY this JSON shape:\n\n{\n\"intent\": \"string\",\n\"product_query\": \"string or null\",\n\"confidence\": 0.95,\n\"needs_human\": false\n}\n\n---\n\nROUTING RULES\n\n1. Product list requests\n\nIf the user asks for:\n\n* all products\n* catalog\n* product list\n* available products\n* products in stock\n* what products you sell\n* what services do you offer\n* what do you offer\n* what do you provide\n* show me your products\n* show available items\n* what can I buy\n* what is available\n\nThen:\n\n* intent = product_list\n* product_query = null\n\n---\n\n2. Single product questions\n\nIf the user asks about:\n\n* one product\n* product details\n* explanation\n* ingredients\n* benefits\n* usage\n* availability\n* comparison\n* information about a product\n\nThen:\n\n* intent = product_info_question\n* product_query = identified product\n\n---\n\n3. Price questions\n\nIf the user asks:\n\n* price\n* cost\n* discount\n* how much\n* how much does it cost\n\nThen:\n\n* intent = price_question\n\n---\n\n4. Greeting\n\nIf greeting:\n\n* intent = greeting\n* product_query = null\n\n---\n\n5. Complaint\n\nIf angry/problem/refund/support:\n\n* intent = complaint\n* needs_human = true\n\n---\n\n6. Small talk / conversational replies\n\nIf the user sends conversational or polite replies such as:\n\n* thank you\n* thanks\n* okay\n* ok\n* cool\n* great\n* nice\n* bye\n* goodbye\n* understood\n* yes thanks\n* no thanks\n\nThen:\n\n* intent = small_talk\n* product_query = null\n* needs_human = false\n\n---\n\n7. Context understanding\n\nUse conversation memory semantically.\n\nIf the current message references:\n\n* \"this product\"\n* \"it\"\n* \"this one\"\n* \"same one\"\n* \"the second one\"\n\nThen use the latest active product from conversation context.\n\n---\n\nExamples:\n\nPrevious assistant:\n\"Would you like more details about Hair Oil?\"\n\nUser:\n\"yes\"\n\nThen:\n{\n\"intent\": \"product_info_question\",\n\"product_query\": \"Hair Oil\",\n\"confidence\": 0.95,\n\"needs_human\": false\n}\n\n---\n\nPrevious assistant:\n\"Which product are you interested in?\"\n\nUser:\n\"the serum\"\n\nThen:\n{\n\"intent\": \"product_info_question\",\n\"product_query\": \"Serum Vitamin C\",\n\"confidence\": 0.95,\n\"needs_human\": false\n}\n\n---\n\nPrevious assistant:\n\"Do you want the price?\"\n\nUser:\n\"yes\"\n\nThen:\n{\n\"intent\": \"price_question\",\n\"product_query\": \"latest active product\",\n\"confidence\": 0.95,\n\"needs_human\": false\n}\n\n---\n\nPrevious assistant:\n\"Would you like more help?\"\n\nUser:\n\"thank you\"\n\nThen:\n{\n\"intent\": \"small_talk\",\n\"product_query\": null,\n\"confidence\": 0.95,\n\"needs_human\": false\n}\n\n---\n\nAdditional examples:\n\nUser:\n\"What services do you offer?\"\n\nThen:\n{\n\"intent\": \"product_list\",\n\"product_query\": null,\n\"confidence\": 0.95,\n\"needs_human\": false\n}\n\n---\n\nUser:\n\"What do you offer?\"\n\nThen:\n{\n\"intent\": \"product_list\",\n\"product_query\": null,\n\"confidence\": 0.95,\n\"needs_human\": false\n}\n\n---\n\nUser:\n\"What products do you have?\"\n\nThen:\n{\n\"intent\": \"product_list\",\n\"product_query\": null,\n\"confidence\": 0.95,\n\"needs_human\": false\n}\n\n---\n\nIf product cannot be identified:\n\n* product_query = null\n\nIf unclear:\n\n* intent = unknown\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -1632,
+        944
+      ],
+      "id": "0a9b2ac3-26a3-4a29-80fb-f6d2f12b7034",
+      "name": "Intent detection"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output || \"\";\n\n// Find the final JSON object\nconst start = raw.lastIndexOf('{');\n\nif (start === -1) {\n  throw new Error(\"No JSON found\");\n}\n\n// Extract JSON only\nconst jsonString = raw.slice(start);\n\n// Parse and return clean structured object\nconst parsed = JSON.parse(jsonString);\n\nreturn [\n  {\n    json: parsed\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        1376
+      ],
+      "id": "43f84362-8db9-4d55-bd58-aecad875b662",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        32,
+        1584
+      ],
+      "id": "bb406ae7-940d-4b06-bc5f-9eebd0cc4c63",
+      "name": "Simple Memory3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const activeProduct =\n  $input.first().json.active_product || null;\n\nreturn [\n  {\n    json: {\n      active_product: activeProduct\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -624,
+        992
+      ],
+      "id": "061c1b12-453d-4bf5-836a-f24df3345175",
+      "name": "State Manager"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "49lp3Jqn2XCtzQRa",
+          "mode": "list",
+          "cachedResultName": "StateManager",
+          "cachedResultUrl": "/projects/euEu2CWStga6D1TR/datatables/49lp3Jqn2XCtzQRa"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $('Telegram Trigger').item.json.message.chat.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+            "active_product": "={{ $json.product_query ? $json.product_query : $('Code in JavaScript4').item.json.active_product }}",
+            "last_intent": "={{ $json.intent }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "active_product",
+              "displayName": "active_product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "last_intent",
+              "displayName": "last_intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -880,
+        944
+      ],
+      "id": "984d4074-51ce-42b2-989c-2734d3afaab7",
+      "name": "Upsert row(s)"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "49lp3Jqn2XCtzQRa",
+          "mode": "list",
+          "cachedResultName": "StateManager",
+          "cachedResultUrl": "/projects/euEu2CWStga6D1TR/datatables/49lp3Jqn2XCtzQRa"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $('Telegram Trigger').item.json.message.chat.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -2400,
+        944
+      ],
+      "id": "60bd8684-1551-4834-b399-64476334e59a",
+      "name": "Get row(s)",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const current = $json;\n\n// safely read previous state\nconst previousActiveProduct =\n  current.active_product || null;\n\n// current detected product\nconst detectedProduct =\n  current.product_query || null;\n\n// update active product only if new one exists\nconst activeProduct =\n  detectedProduct || previousActiveProduct;\n\n// final output\nreturn [\n  {\n    json: {\n      ...current,\n      active_product: activeProduct\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1968,
+        944
+      ],
+      "id": "1bbb6d9a-77b6-47d9-81b1-2d1615cf78b1",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "path": "f481ce17-68d3-41cb-86aa-54bb4cb5657d",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -240,
+        320
+      ],
+      "id": "ef8df897-d4aa-42ec-bc5d-9071be28a4f3",
+      "name": "Webhook",
+      "webhookId": "f481ce17-68d3-41cb-86aa-54bb4cb5657d"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Client query:\n{{ $('Telegram Trigger').item.json.message.text }}",
+        "options": {
+          "systemMessage": "You are a friendly greeting and small-talk assistant for a social media sales chatbot.\n\nYour role is ONLY to handle:\n- greetings\n- thanks\n- bye messages\n- simple conversational replies\n\nYou must NOT:\n- answer product questions\n- mention prices\n- mention availability\n- invent products\n- ask unnecessary questions\n\nKeep responses:\n- short\n- natural\n- friendly\n- human-like\n\nExamples:\n\nUser: \"hello\"\nResponse: \"Hello! How can I help you today?\"\n\nUser: \"hi\"\nResponse: \"Hi! How can I help you today?\"\n\nUser: \"thank you\"\nResponse: \"You're welcome!\"\n\nUser: \"thanks\"\nResponse: \"Happy to help!\"\n\nUser: \"bye\"\nResponse: \"Have a great day!\"\n\nUser: \"okay\"\nResponse: \"Of course!\"\n\nUser: \"good\"\nResponse: \"Glad to hear that!\"\n\nRespond ONLY with plain text.\nNo JSON.\nNo markdown.\nNo explanation."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        128,
+        352
+      ],
+      "id": "9b7a206b-fdb0-4600-a5c4-dc95fddca339",
+      "name": "AI Agent3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Client query:\n{{ $('Telegram Trigger').item.json.message.text }}",
+        "options": {
+          "systemMessage": "You are an assistant for handling unclear or unsupported customer messages in a social media sales chatbot.\n\nYour role is ONLY to respond when:\n- the request is unclear\n- the product cannot be identified\n- the user message is ambiguous\n- the system cannot confidently determine the intent\n\nYou must:\n- respond politely\n- ask for clarification\n- guide the user naturally\n\nYou must NOT:\n- invent products\n- invent prices\n- invent availability\n- guess missing information\n\nKeep responses:\n- short\n- friendly\n- natural\n- professional\n\nExamples:\n\nUser: \"this one\"\nResponse:\n\"Could you tell me which product you mean?\"\n\nUser: \"i want the other\"\nResponse:\n\"Which product are you referring to?\"\n\nUser: \"help\"\nResponse:\n\"Sure! Could you tell me what product or information you need?\"\n\nUser: \"more\"\nResponse:\n\"Could you specify which product you'd like more details about?\"\n\nRespond ONLY with plain text.\nNo JSON.\nNo markdown.\nNo explanation."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        480,
+        448
+      ],
+      "id": "8df4b20d-7dea-4385-b17d-5e0c60c82e1b",
+      "name": "AI Agent4"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Client query:\n{{ $('Telegram Trigger').item.json.message.text }}",
+        "options": {
+          "systemMessage": "You are a support escalation assistant for a social media sales chatbot.\n\nYour role is ONLY to handle situations that require human intervention, such as:\n- complaints\n- refunds\n- delivery problems\n- angry customers\n- technical issues\n- complex support requests\n- requests the AI cannot safely handle\n\nYou must:\n- respond politely\n- stay calm and professional\n- acknowledge the issue\n- inform the customer that a human representative will assist them\n\nYou must NOT:\n- argue with the customer\n- invent solutions\n- promise refunds or actions\n- provide false information\n\nKeep responses:\n- short\n- empathetic\n- professional\n- reassuring\n\nExamples:\n\nUser: \"My order never arrived\"\nResponse:\n\"I'm sorry about the issue. A support representative will review your request and contact you shortly.\"\n\nUser: \"I want a refund\"\nResponse:\n\"I understand your concern. I've forwarded your request to the support team for assistance.\"\n\nUser: \"This product is bad\"\nResponse:\n\"I'm sorry to hear that. A team member will follow up with you as soon as possible.\"\n\nRespond ONLY with plain text.\nNo JSON.\nNo markdown.\nNo explanation."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        400,
+        1168
+      ],
+      "id": "a18aaea3-e404-43ed-99dc-770ec5db731a",
+      "name": "AI Agent5"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Client query:\n{{ $('Telegram Trigger').item.json.message.text }}",
+        "options": {
+          "systemMessage": "You are a small-talk assistant for a social media sales chatbot.\n\nYour role is ONLY to handle:\n- thank you messages\n- casual replies\n- simple conversational interactions\n- goodbye messages\n- friendly reactions\n\nYou must:\n- respond naturally\n- sound friendly and human\n- keep responses short\n\nYou must NOT:\n- answer product questions\n- mention prices\n- mention availability\n- invent information\n- ask unnecessary questions\n\nKeep responses:\n- short\n- warm\n- conversational\n- professional\n\nExamples:\n\nUser: \"thank you\"\nResponse:\n\"You're welcome 😊\"\n\nUser: \"thanks\"\nResponse:\n\"Happy to help!\"\n\nUser: \"okay\"\nResponse:\n\"Of course 😊\"\n\nUser: \"nice\"\nResponse:\n\"Glad you liked it!\"\n\nUser: \"bye\"\nResponse:\n\"Have a great day!\"\n\nUser: \"good\"\nResponse:\n\"Glad to hear that!\"\n\nRespond ONLY with plain text.\nNo JSON.\nNo markdown.\nNo explanation."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        80,
+        1808
+      ],
+      "id": "a584f31e-f07b-4f67-8529-9f2c48efe926",
+      "name": "AI Agent6"
+    },
+    {
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        0,
+        2112
+      ],
+      "id": "be0e31d2-db01-484a-96b5-636f28f56d05",
+      "name": "Ollama Chat Model4",
+      "credentials": {
+        "ollamaApi": {
+          "id": "o7pvkfJWJDaUz1Zg",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        480,
+        1440
+      ],
+      "id": "7017d420-fc92-4a4d-acf7-b95bf95b48af",
+      "name": "Ollama Chat Model5",
+      "credentials": {
+        "ollamaApi": {
+          "id": "o7pvkfJWJDaUz1Zg",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        480,
+        624
+      ],
+      "id": "bc0b4ccb-d720-432f-96e6-3c628f0f9889",
+      "name": "Ollama Chat Model6",
+      "credentials": {
+        "ollamaApi": {
+          "id": "o7pvkfJWJDaUz1Zg",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        16,
+        496
+      ],
+      "id": "15bc3402-a5b2-44f5-b308-5d74503a1bed",
+      "name": "Ollama Chat Model7",
+      "credentials": {
+        "ollamaApi": {
+          "id": "o7pvkfJWJDaUz1Zg",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "I received your message. Let me analyze it...",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -3008,
+        976
+      ],
+      "id": "f4fd3cfe-1b64-4bf5-9cd1-6b7c30c1a001",
+      "name": "Progress - analyzing",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Checking the product catalog...",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -128,
+        0
+      ],
+      "id": "f4fd3cfe-1b64-4bf5-9cd1-6b7c30c1a002",
+      "name": "Progress - product catalog",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Checking the product details...",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        656
+      ],
+      "id": "f4fd3cfe-1b64-4bf5-9cd1-6b7c30c1a003",
+      "name": "Progress - product details",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Checking the latest price...",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        1376
+      ],
+      "id": "f4fd3cfe-1b64-4bf5-9cd1-6b7c30c1a004",
+      "name": "Progress - price",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Forwarding this to the shop owner...",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        1168
+      ],
+      "id": "f4fd3cfe-1b64-4bf5-9cd1-6b7c30c1a005",
+      "name": "Progress - human needed",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Let me clarify your request...",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        352,
+        448
+      ],
+      "id": "f4fd3cfe-1b64-4bf5-9cd1-6b7c30c1a006",
+      "name": "Progress - unknown",
+      "webhookId": "b42aeb08-5ef1-4d62-be60-78b7eaa1b66b",
+      "credentials": {
+        "telegramApi": {
+          "id": "F5rdsIumNu6SP5Jo",
+          "name": "Telegram account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Progress - analyzing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Intent detection",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Progress - product details",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Progress - unknown",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Progress - human needed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Progress - price",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Progress - product catalog",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "shop_data": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Upsert row(s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Product Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Product Info1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "shop_data1": {
+      "main": [
+        [
+          {
+            "node": "Get row(s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent detection": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Price",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory3": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "State Manager": {
+      "main": [
+        [
+          {
+            "node": "shop_data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s)": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Intent detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert row(s)": {
+      "main": [
+        [
+          {
+            "node": "State Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent3": {
+      "main": [
+        [
+          {
+            "node": "greeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent4": {
+      "main": [
+        [
+          {
+            "node": "Unknown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent5": {
+      "main": [
+        [
+          {
+            "node": "human_needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent6": {
+      "main": [
+        [
+          {
+            "node": "Small Talk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent6",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent5",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent4",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model7": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Progress - analyzing": {
+      "main": [
+        [
+          {
+            "node": "shop_data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Progress - product catalog": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Progress - product details": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Progress - price": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Progress - human needed": {
+      "main": [
+        [
+          {
+            "node": "AI Agent5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Progress - unknown": {
+      "main": [
+        [
+          {
+            "node": "AI Agent4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6754f63d-6256-4681-abec-7e7d48a5ed61",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d45f359b90e49ac25fab654dc9d7c72cd40857b48b19314be451ef559b11134"
+  },
+  "id": "yStBhFwrx6OsvXjK",
+  "tags": []
+}

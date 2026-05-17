@@ -1,0 +1,68 @@
+"""Node: Product info agent."""
+
+import json
+from app.state import ChatState
+from app.llm import get_llm
+from app.llm.prompts import SYSTEM_PROMPTS, PROMPT_TEMPLATES
+from app.data.shop_data import SHOP_INFO
+
+
+def product_info_agent(state: ChatState) -> ChatState:
+    """Handle product information request using Ollama LLM."""
+    
+    if not state["active_product"]:
+        state["response"] = "Could you tell me which product you mean?"
+        state["steps"].append("Generated product info response")
+        return state
+    
+    # Find the active product
+    product = None
+    for p in state["shop_data"]:
+        if p["name"] == state["active_product"]:
+            product = p
+            break
+    
+    if not product:
+        state["response"] = "Could you tell me which product you mean?"
+        state["steps"].append("Generated product info response")
+        return state
+    
+    # Generate response using Ollama LLM
+    try:
+        llm = get_llm()
+        
+        shop_data_json = json.dumps([{
+            "name": p["name"],
+            "description": p["description"],
+            "price": p["price"],
+            "available": p["available"],
+            "brand": p["brand"],
+            "stock": p["stock"],
+        } for p in state["shop_data"]], indent=2)
+        
+        prompt = PROMPT_TEMPLATES["product_info"].format(
+            message=state["message"],
+            shop_data=shop_data_json,
+            active_product=state["active_product"]
+        )
+        
+        response_text = llm.generate(
+            prompt=prompt,
+            system=SYSTEM_PROMPTS["product_info"],
+            temperature=0.3,
+            max_tokens=256,
+        )
+        
+        # Parse JSON response
+        result = json.loads(response_text)
+        state["response"] = result.get("response", "Product information not available.")
+    
+    except (json.JSONDecodeError, Exception):
+        # Fallback to deterministic response if LLM fails or JSON parsing fails
+        if product["available"]:
+            state["response"] = f"{product['name']} is available. {product['description']}"
+        else:
+            state["response"] = f"{product['name']} is currently unavailable. {product['description']}"
+    
+    state["steps"].append("Generated product info response")
+    return state
