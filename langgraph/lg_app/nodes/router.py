@@ -2,6 +2,7 @@
 
 import json
 import re
+import unicodedata
 from typing import Optional
 from lg_app.state import ChatState
 from lg_app.utils.product_matcher import find_product
@@ -20,6 +21,13 @@ def _contains_word(text: str, words: list[str]) -> bool:
 def _contains_any(text: str, phrases: list[str]) -> bool:
     """Check whether text contains any phrase."""
     return any(phrase in text for phrase in phrases)
+
+
+def _normalize_text(text: str) -> str:
+    """Lowercase and strip accents/punctuation for resilient routing checks."""
+    normalized = unicodedata.normalize("NFKD", text)
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9+]+", " ", ascii_text.lower()).strip()
 
 
 def _extract_delivery_location(message: str) -> tuple[Optional[str], Optional[str]]:
@@ -153,6 +161,7 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
     """Correct ambiguous LLM routing with sales-specific priority rules."""
     message = state["message"]
     msg_lower = message.lower()
+    msg_norm = _normalize_text(message)
     explicit_product = find_product(message, state["shop_data"])
     active_product = state.get("active_product")
 
@@ -175,6 +184,11 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         "how much time",
         "how long",
         "arrive",
+        "livraison",
+        "katsifto",
+        "tsifto",
+        "sifto",
+        "bghit livraison",
     ]
     payment_terms = [
         "payment",
@@ -185,6 +199,9 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         "transfer",
         "bank transfer",
         "paypal",
+        "paiement",
+        "payer",
+        "virement",
     ]
     price_terms = [
         "price",
@@ -195,6 +212,12 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         "cheapest",
         "discount",
         "promo",
+        "prix",
+        "combien",
+        "ch7al",
+        "chhal",
+        "taman",
+        "tamane",
     ]
     availability_terms = [
         "available",
@@ -202,6 +225,10 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         "in stock",
         "stock",
         "disponible",
+        "kayn",
+        "kayna",
+        "mawjod",
+        "mawjoude",
     ]
     order_terms = [
         "buy",
@@ -213,6 +240,11 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         "take it",
         "send it to me",
         "can i buy",
+        "bghit",
+        "ncommandi",
+        "commander",
+        "commande",
+        "acheter",
     ]
     info_terms = [
         "details",
@@ -237,35 +269,53 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
 
     is_cash_on_delivery = "cash on delivery" in msg_lower
 
-    if state.get("pending_order_json") and _contains_any(
-        msg_lower,
-        ["name", "phone", "address", "city", "cash", "card", "transfer", "paypal", "quantity", "qty", "my address"],
+    if state.get("pending_order_json") and (
+        _contains_any(
+            msg_norm,
+            [
+                "name",
+                "phone",
+                "telephone",
+                "address",
+                "adresse",
+                "city",
+                "ville",
+                "cash",
+                "card",
+                "transfer",
+                "paypal",
+                "quantity",
+                "qty",
+                "my address",
+            ],
+        )
+        or state.get("delivery_city")
     ):
         router_result["intent"] = "order_intent"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
-    elif _contains_any(msg_lower, delivery_terms) and not is_cash_on_delivery:
+    elif _contains_any(msg_norm, delivery_terms) and not is_cash_on_delivery:
         router_result["intent"] = "delivery_question"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
-    elif _contains_any(msg_lower, payment_terms):
+    elif _contains_any(msg_norm, payment_terms):
         router_result["intent"] = "payment_question"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
-    elif _contains_any(msg_lower, price_terms):
+    elif _contains_any(msg_norm, price_terms):
         router_result["intent"] = "price_question"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
-    elif _contains_any(msg_lower, availability_terms):
+    elif _contains_any(msg_norm, availability_terms):
         router_result["intent"] = "availability_question"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
-    elif _contains_any(msg_lower, order_terms):
+    elif _contains_any(msg_norm, order_terms):
         router_result["intent"] = "order_intent"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
-    elif explicit_product and _contains_any(msg_lower, info_terms):
+    elif explicit_product and _contains_any(msg_norm, info_terms):
         router_result["intent"] = "product_info_question"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.9)
 
     if not router_result.get("product_query") and active_product:
         uses_context = _contains_any(
             msg_lower,
-            [" it", "this", "that product", "same one", "this one", "how much", "price", "available", "stock", "deliver"],
+            [" it", "this", "that product", "same one", "this one", "how much", "price", "available", "stock", "deliver", "had", "hada", "hadi"],
         )
         if uses_context:
             router_result["product_query"] = active_product
@@ -375,6 +425,7 @@ def deterministic_intent_router(state: ChatState) -> dict:
         dict with: intent, product_query, confidence, needs_human
     """
     msg_lower = state["message"].lower()
+    msg_norm = _normalize_text(state["message"])
     
     # Initialize result
     result = {
@@ -390,18 +441,18 @@ def deterministic_intent_router(state: ChatState) -> dict:
         result["product_query"] = product["name"]
     
     # Delivery has priority because "how much" can mean delivery cost/time.
-    if _contains_any(msg_lower, ["delivery", "deliver", "shipping", "ship", "address", "city", "cities", "delivery cost", "delivery price", "how much time", "how long", "arrive"]) and "cash on delivery" not in msg_lower:
+    if _contains_any(msg_norm, ["delivery", "deliver", "shipping", "ship", "address", "city", "cities", "delivery cost", "delivery price", "how much time", "how long", "arrive", "livraison", "katsifto", "tsifto", "sifto"]) and "cash on delivery" not in msg_norm:
         result["intent"] = "delivery_question"
         result["confidence"] = 0.95
     
     # Payment patterns
-    elif _contains_any(msg_lower, ["payment", "pay", "cash on delivery", "cash", "card", "transfer", "bank transfer", "paypal"]):
+    elif _contains_any(msg_norm, ["payment", "pay", "cash on delivery", "cash", "card", "transfer", "bank transfer", "paypal", "paiement", "payer", "virement"]):
         result["intent"] = "payment_question"
         result["product_query"] = None
         result["confidence"] = 0.95
     
     # Price patterns
-    elif _contains_any(msg_lower, ["price", "cost", "how much", "expensive", "cheap", "cheapest", "discount", "promo"]):
+    elif _contains_any(msg_norm, ["price", "cost", "how much", "expensive", "cheap", "cheapest", "discount", "promo", "prix", "combien", "ch7al", "chhal", "taman", "tamane"]):
         result["intent"] = "price_question"
         if product:
             result["product_query"] = product["name"]
@@ -410,7 +461,7 @@ def deterministic_intent_router(state: ChatState) -> dict:
         result["confidence"] = 0.95
     
     # Availability patterns
-    elif _contains_any(msg_lower, ["available", "availability", "in stock", "stock", "disponible"]):
+    elif _contains_any(msg_norm, ["available", "availability", "in stock", "stock", "disponible", "kayn", "kayna", "mawjod", "mawjoude"]):
         result["intent"] = "availability_question"
         if product:
             result["product_query"] = product["name"]
@@ -419,7 +470,7 @@ def deterministic_intent_router(state: ChatState) -> dict:
         result["confidence"] = 0.95
     
     # Order intent
-    elif _contains_any(msg_lower, ["buy", "order", "purchase", "reserve", "confirm", "i want it", "take it", "send it to me", "can i buy"]):
+    elif _contains_any(msg_norm, ["buy", "order", "purchase", "reserve", "confirm", "i want it", "take it", "send it to me", "can i buy", "bghit", "ncommandi", "commander", "commande", "acheter"]):
         result["intent"] = "order_intent"
         if product:
             result["product_query"] = product["name"]
@@ -428,12 +479,12 @@ def deterministic_intent_router(state: ChatState) -> dict:
         result["confidence"] = 0.95
     
     # Greeting patterns (use word boundary to avoid matching "hi" in "this")
-    elif _contains_word(msg_lower, ["hello", "hi", "salam", "hey"]):
+    elif _contains_word(msg_norm, ["hello", "hi", "salam", "slm", "hey", "bonjour", "slt", "salut"]):
         result["intent"] = "greeting"
         result["confidence"] = 0.95
     
     # Small talk patterns
-    elif _contains_word(msg_lower, ["thank you", "thanks", "ok", "okay", "bye", "good", "understood"]):
+    elif _contains_word(msg_norm, ["thank you", "thanks", "ok", "okay", "bye", "good", "understood", "merci", "chokran", "shokran", "la", "non"]):
         result["intent"] = "small_talk"
         result["confidence"] = 0.9
     
