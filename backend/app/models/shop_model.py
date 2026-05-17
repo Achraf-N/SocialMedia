@@ -20,3 +20,11 @@ class ShopResponse(BaseModel):
     delivery: str
     created_at: datetime
     updated_at: datetime
+
+
+class ShopPublicResponse(BaseModel):
+    id: str
+    name: str
+    delivery: str
+    created_at: datetime
+    updated_at: datetime
