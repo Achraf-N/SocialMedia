@@ -21,11 +21,21 @@ def serialize_documents(documents: list[dict[str, Any]]) -> list[dict[str, Any]]
     return [serialize_document(document) for document in documents if document is not None]
 
 
+def serialize_shop_public(document: dict[str, Any] | None) -> dict[str, Any] | None:
+    serialized = serialize_document(document)
+    if serialized is None:
+        return None
+    serialized.pop("owner_id", None)
+    return serialized
+
+
 def serialize_product(document: dict[str, Any] | None) -> dict[str, Any] | None:
     serialized = serialize_document(document)
     if serialized is None:
         return None
     serialized["image"] = serialized.get("image") or ""
+    serialized.pop("owner_id", None)
+    serialized.pop("shop_id", None)
     return serialized
 
 
