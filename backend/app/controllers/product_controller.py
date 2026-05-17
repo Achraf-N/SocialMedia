@@ -12,7 +12,7 @@ from app.models.product_model import (
     ProductResponse,
     ProductUpdate,
 )
-from app.views.serializers import serialize_document, serialize_documents
+from app.views.serializers import serialize_product, serialize_products, serialize_shop_public
 
 router = APIRouter(prefix="/shops/{shop_id}/products", tags=["products"])
 
@@ -53,19 +53,20 @@ def create_product(
     _upsert_category(shop.get("owner_id"), shop_obj_id, product_in.category)
     product = {
         **product_in.model_dump(),
+        "image": "",
         "owner_id": shop.get("owner_id"),
         "shop_id": shop_obj_id,
         "created_at": now,
         "updated_at": now,
     }
     result = products_collection.insert_one(product)
-    return serialize_document(products_collection.find_one({"_id": result.inserted_id}))
+    return serialize_product(products_collection.find_one({"_id": result.inserted_id}))
 
 
 
 @router.get("", response_model=ProductListWithShopResponse)
 def list_products(shop_id: str) -> dict:
-    """List all products for a shop with public shop details."""
+    """List all products for a shop (public endpoint)."""
     
     if not ObjectId.is_valid(shop_id):
         raise HTTPException(
@@ -86,11 +87,7 @@ def list_products(shop_id: str) -> dict:
     products = list(
         products_collection.find({"shop_id": shop_obj_id}).sort("created_at", -1)
     )
-
-    return {
-        "shop": serialize_document(shop),
-        "products": serialize_documents(products),
-    }
+    return {"shop": serialize_shop_public(shop), "products": serialize_products(products)}
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -117,12 +114,9 @@ def get_product(shop_id: str, product_id: str) -> dict:
     )
 
     if not product:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Product not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
-    return serialize_document(product)
+    return serialize_product(product)
 
 @router.patch("/{product_id}", response_model=ProductResponse)
 def update_product(
@@ -151,7 +145,7 @@ def update_product(
     if result.matched_count == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
-    return serialize_document(products_collection.find_one({"_id": ObjectId(product_id)}))
+    return serialize_product(products_collection.find_one({"_id": ObjectId(product_id)}))
 
 
 @router.patch("/{product_id}/image", response_model=ProductResponse)
@@ -182,7 +176,7 @@ def update_product_image(
         {"$set": {"image": public_url, "updated_at": now_utc()}},
     )
 
-    return serialize_document(products_collection.find_one({"_id": product["_id"]}))
+    return serialize_product(products_collection.find_one({"_id": product["_id"]}))
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
