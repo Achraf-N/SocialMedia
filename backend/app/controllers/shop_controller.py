@@ -9,8 +9,9 @@ from app.core.database import (
 )
 from app.core.dependencies import get_current_owner
 from app.models.common import now_utc, oid
-from app.models.shop_model import ShopCreate, ShopResponse, ShopUpdate
-from app.views.serializers import serialize_document, serialize_documents
+from app.core.dependencies import get_shop_by_id
+from app.models.shop_model import ShopCreate, ShopPublicResponse, ShopResponse, ShopUpdate
+from app.views.serializers import serialize_document, serialize_documents, serialize_shop_public
 
 router = APIRouter(prefix="/shops", tags=["shops"])
 
@@ -85,10 +86,11 @@ def create_shop(
     return serialize_document(created_shop)
 
 
-@router.get("", response_model=list[ShopResponse])
-def list_shops(owner: dict = Depends(get_current_owner)) -> list[dict]:
-    shops = list(shops_collection.find({"owner_id": owner["_id"]}).sort("created_at", -1))
-    return serialize_documents(shops)
+@router.get("", response_model=list[ShopPublicResponse])
+def list_shops() -> list[dict]:
+    """List all shops (public)."""
+    shops = list(shops_collection.find({}).sort("created_at", -1))
+    return [serialize_shop_public(shop) for shop in shops]
 
 
 @router.get("/me", response_model=list[ShopResponse])
@@ -97,16 +99,11 @@ def get_my_shops(owner: dict = Depends(get_current_owner)) -> list[dict]:
     return serialize_documents(shops)
 
 
-@router.get("/{shop_id}", response_model=ShopResponse)
-def get_shop(shop_id: str, owner: dict = Depends(get_current_owner)) -> dict:
-    if not ObjectId.is_valid(shop_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid object id")
-
-    shop = shops_collection.find_one({"_id": ObjectId(shop_id), "owner_id": owner["_id"]})
-    if not shop:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shop not found")
-
-    return serialize_document(shop)
+@router.get("/{shop_id}", response_model=ShopPublicResponse)
+def get_shop(shop_id: str) -> dict:
+    """Get a shop by id (public)."""
+    shop = get_shop_by_id(shop_id)
+    return serialize_shop_public(shop)
 
 
 @router.patch("/{shop_id}", response_model=ShopResponse)
