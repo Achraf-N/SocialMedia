@@ -19,3 +19,15 @@ def serialize_document(document: dict[str, Any] | None) -> dict[str, Any] | None
 
 def serialize_documents(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [serialize_document(document) for document in documents if document is not None]
+
+
+def serialize_product(document: dict[str, Any] | None) -> dict[str, Any] | None:
+    serialized = serialize_document(document)
+    if serialized is None:
+        return None
+    serialized["image"] = serialized.get("image") or ""
+    return serialized
+
+
+def serialize_products(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [serialize_product(document) for document in documents if document is not None]

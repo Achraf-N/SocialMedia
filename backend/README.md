@@ -54,4 +54,4 @@ Protected endpoints read the JWT from the `access_token` HTTP-only cookie. They 
 
 Each owner can create multiple shops. Products, categories, and orders are scoped by shop through the `{shop_id}` path parameter.
 
-Product image uploads use multipart form data with an `image` file field. The backend uploads the image to Supabase S3-compatible storage and saves the public URL in the product `image` field.
+New products are created without an image (`image` is empty). Upload the image later via `PATCH /api/shops/{shop_id}/products/{product_id}/image` using multipart form data with an `image` file field. The backend uploads to Supabase S3-compatible storage and saves the public URL on the product.

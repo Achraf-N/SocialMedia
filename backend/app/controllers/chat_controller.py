@@ -96,7 +96,7 @@ def chat_endpoint(request: ChatRequest) -> ChatResponse:
             needs_human=False,
             confidence=0.0
         )
-        
+      
         # Run LangGraph workflow
         result = graph.invoke(state)
         
