@@ -10,7 +10,7 @@ def serialize_document(document: dict[str, Any] | None) -> dict[str, Any] | None
     serialized = dict(document)
     serialized["id"] = str(serialized.pop("_id"))
 
-    for key in ("owner_id", "shop_id"):
+    for key in ("owner_id", "shop_id", "product_id"):
         if key in serialized and isinstance(serialized[key], ObjectId):
             serialized[key] = str(serialized[key])
 

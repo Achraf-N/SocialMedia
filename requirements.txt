@@ -5,3 +5,5 @@ langchain
 langgraph
 pydantic
 pymongo
+boto3
+python-multipart
