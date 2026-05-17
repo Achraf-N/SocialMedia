@@ -3,9 +3,9 @@
 import json
 import re
 from typing import Optional
-from app.state import ChatState
-from app.utils.product_matcher import find_product
-from app.llm.prompts import SYSTEM_PROMPTS, PROMPT_TEMPLATES
+from lg_app.state import ChatState
+from lg_app.utils.product_matcher import find_product
+from lg_app.llm.prompts import SYSTEM_PROMPTS, PROMPT_TEMPLATES
 
 
 def _contains_word(text: str, words: list[str]) -> bool:
@@ -63,7 +63,7 @@ def route_with_llm(
         return None
     
     try:
-        from app.llm import get_llm
+        from lg_app.llm import get_llm
         
         known_products = [p["name"] for p in state["shop_data"]]
         system_prompt, user_prompt = build_router_prompt(

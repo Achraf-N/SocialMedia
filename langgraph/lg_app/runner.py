@@ -1,7 +1,7 @@
 """Chat runner for the LangGraph workflow."""
 
-from app.state import ChatState
-from app.graph import get_graph
+from lg_app.state import ChatState
+from lg_app.graph import get_graph
 
 
 def run_chat(session_id: str, message: str) -> dict:

@@ -2,21 +2,21 @@
 
 from langgraph.graph import StateGraph, END
 
-from app.state import ChatState
-from app.nodes.load_shop_data import load_shop_data
-from app.nodes.load_session_state import load_session_state
-from app.nodes.router import intent_router
-from app.nodes.state_manager import update_active_product
-from app.nodes.product_list import product_list_agent
-from app.nodes.product_info import product_info_agent
-from app.nodes.price import price_agent
-from app.nodes.delivery import delivery_agent
-from app.nodes.payment import payment_agent
-from app.nodes.greeting import greeting_agent
-from app.nodes.small_talk import small_talk_agent
-from app.nodes.unknown import unknown_agent
-from app.nodes.human_needed import human_needed_agent
-from app.nodes.save_session_state import save_session_state_node
+from lg_app.state import ChatState
+from lg_app.nodes.load_shop_data import load_shop_data
+from lg_app.nodes.load_session_state import load_session_state
+from lg_app.nodes.router import intent_router
+from lg_app.nodes.state_manager import update_active_product
+from lg_app.nodes.product_list import product_list_agent
+from lg_app.nodes.product_info import product_info_agent
+from lg_app.nodes.price import price_agent
+from lg_app.nodes.delivery import delivery_agent
+from lg_app.nodes.payment import payment_agent
+from lg_app.nodes.greeting import greeting_agent
+from lg_app.nodes.small_talk import small_talk_agent
+from lg_app.nodes.unknown import unknown_agent
+from lg_app.nodes.human_needed import human_needed_agent
+from lg_app.nodes.save_session_state import save_session_state_node
 
 
 def route_by_intent(state: ChatState) -> str:
@@ -97,3 +97,6 @@ def get_graph():
     graph.add_edge("save_session_state", END)
     
     return graph.compile()
+def build_graph():
+    """Compatibility wrapper for backend bridge."""
+    return get_graph()

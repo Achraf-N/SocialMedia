@@ -1,7 +1,7 @@
 """Node: Save session state."""
 
-from app.state import ChatState
-from app.memory.session_store import save_session_state
+from lg_app.state import ChatState
+from lg_app.memory.session_store import save_session_state
 
 
 def save_session_state_node(state: ChatState) -> ChatState:

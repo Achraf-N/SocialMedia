@@ -1,7 +1,7 @@
 """Node: Load session state."""
 
-from app.state import ChatState
-from app.memory.session_store import get_session_state
+from lg_app.state import ChatState
+from lg_app.memory.session_store import get_session_state
 
 
 def load_session_state(state: ChatState) -> ChatState:
