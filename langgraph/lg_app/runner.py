@@ -4,13 +4,14 @@ from lg_app.state import ChatState
 from lg_app.graph import get_graph
 
 
-def run_chat(session_id: str, message: str) -> dict:
+def run_chat(session_id: str, message: str, shop_id: str = "6a09d431697b1d38b68a50ce") -> dict:
     """
     Run a chat message through the LangGraph workflow.
     
     Args:
         session_id: User session identifier
         message: User message
+        shop_id: Shop ID to fetch products from (defaults to demo shop)
         
     Returns:
         dict with keys: response, intent, active_product, confidence, steps
@@ -21,6 +22,7 @@ def run_chat(session_id: str, message: str) -> dict:
     # Initialize state
     initial_state: ChatState = {
         "session_id": session_id,
+        "shop_id": shop_id,
         "message": message,
         "intent": None,
         "product_query": None,

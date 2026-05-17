@@ -15,6 +15,58 @@ from app.views.serializers import serialize_document, serialize_documents
 router = APIRouter(prefix="/shops", tags=["shops"])
 
 
+@router.get("/public/debug", status_code=status.HTTP_200_OK)
+def debug_all_shops() -> dict:
+    """
+    DEBUG ONLY: List all shops in database (for troubleshooting).
+    """
+    try:
+        shops = list(shops_collection.find({}))
+        return {
+            "total_shops": len(shops),
+            "shops": [
+                {
+                    "id": str(s.get("_id")),
+                    "name": s.get("name"),
+                    "delivery": s.get("delivery"),
+                    "owner_id": str(s.get("owner_id"))
+                }
+                for s in shops
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/{shop_id}/products/public", status_code=status.HTTP_200_OK)
+def get_shop_products_public(shop_id: str) -> dict:
+    """
+    Public endpoint for chat bot to fetch shop details and products.
+    No authentication required.
+    """
+    try:
+        if not ObjectId.is_valid(shop_id):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid object id")
+        
+        shop_obj_id = ObjectId(shop_id)
+        shop = shops_collection.find_one({"_id": shop_obj_id})
+        
+        if not shop:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shop not found")
+        
+        # Get products for this shop
+        products = list(products_collection.find({"shop_id": shop_obj_id}))
+        
+        return {
+            "shop": serialize_document(shop),
+            "products": serialize_documents(products)
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
 @router.post("", response_model=ShopResponse, status_code=status.HTTP_201_CREATED)
 def create_shop(
     shop_in: ShopCreate,

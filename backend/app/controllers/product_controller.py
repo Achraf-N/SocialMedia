@@ -1,7 +1,7 @@
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from app.core.database import categories_collection, products_collection
+from app.core.database import categories_collection, products_collection, shops_collection
 from app.core.dependencies import get_current_owner, get_owned_shop
 from app.core.storage import upload_product_image
 from app.models.common import now_utc
@@ -38,15 +38,23 @@ def _upsert_category(owner_id: ObjectId, shop_id: ObjectId, category_name: str) 
 def create_product(
     shop_id: str,
     product_in: ProductCreate,
-    owner: dict = Depends(get_current_owner),
 ) -> dict:
-    shop = get_owned_shop(shop_id, owner)
+    """Create a product in a shop (public endpoint for testing)."""
+    if not ObjectId.is_valid(shop_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid shop id")
+    
+    shop_obj_id = ObjectId(shop_id)
+    # Verify shop exists
+    shop = shops_collection.find_one({"_id": shop_obj_id})
+    if not shop:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shop not found")
+    
     now = now_utc()
-    _upsert_category(owner["_id"], shop["_id"], product_in.category)
+    _upsert_category(shop.get("owner_id"), shop_obj_id, product_in.category)
     product = {
         **product_in.model_dump(),
-        "owner_id": owner["_id"],
-        "shop_id": shop["_id"],
+        "owner_id": shop.get("owner_id"),
+        "shop_id": shop_obj_id,
         "created_at": now,
         "updated_at": now,
     }
@@ -54,38 +62,64 @@ def create_product(
     return serialize_document(products_collection.find_one({"_id": result.inserted_id}))
 
 
-@router.get("", response_model=ProductListWithShopResponse)
-def list_products(
-    shop_id: str,
-    owner: dict = Depends(get_current_owner),
-) -> dict:
-    shop = get_owned_shop(shop_id, owner)
-    products = list(
-        products_collection.find({"owner_id": owner["_id"], "shop_id": shop["_id"]}).sort(
-            "created_at", -1
+
+@router.get("", response_model=list[ProductResponse])
+def list_products(shop_id: str) -> list[dict]:
+    """List all products for a shop (public endpoint)."""
+    
+    if not ObjectId.is_valid(shop_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid shop id"
         )
+
+    shop_obj_id = ObjectId(shop_id)
+
+    # Verify shop exists
+    shop = shops_collection.find_one({"_id": shop_obj_id})
+    if not shop:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shop not found"
+        )
+
+    products = list(
+        products_collection.find({"shop_id": shop_obj_id}).sort("created_at", -1)
     )
-    return {"shop": serialize_document(shop), "products": serialize_documents(products)}
+
+    return serialize_documents(products)
 
 
-@router.get("/{product_id}", response_model=ProductDetailWithShopResponse)
-def get_product(
-    shop_id: str,
-    product_id: str,
-    owner: dict = Depends(get_current_owner),
-) -> dict:
-    shop = get_owned_shop(shop_id, owner)
+@router.get("/{product_id}", response_model=ProductResponse)
+def get_product(shop_id: str, product_id: str) -> dict:
+    """Get a specific product (public endpoint)."""
+
+    if not ObjectId.is_valid(shop_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid shop id"
+        )
+
     if not ObjectId.is_valid(product_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid object id")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid product id"
+        )
 
     product = products_collection.find_one(
-        {"_id": ObjectId(product_id), "owner_id": owner["_id"], "shop_id": shop["_id"]}
+        {
+            "_id": ObjectId(product_id),
+            "shop_id": ObjectId(shop_id),
+        }
     )
+
     if not product:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
 
-    return {"shop": serialize_document(shop), "product": serialize_document(product)}
-
+    return serialize_document(product)
 
 @router.patch("/{product_id}", response_model=ProductResponse)
 def update_product(
