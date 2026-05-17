@@ -1,7 +1,7 @@
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.core.database import orders_collection, products_collection
+from app.core.database import orders_collection, products_collection, shops_collection
 from app.core.dependencies import get_current_owner, get_owned_shop
 from app.models.common import now_utc
 from app.models.order_model import (
@@ -10,6 +10,7 @@ from app.models.order_model import (
     OrderListWithShopResponse,
     OrderResponse,
     OrderUpdate,
+    PublicOrderCreate,
 )
 from app.views.serializers import serialize_document, serialize_documents
 
@@ -27,6 +28,62 @@ def _get_owned_product(product_id: str, owner: dict, shop: dict) -> dict:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
     return product
+
+
+def _delivery_summary(shop: dict, city: str) -> str:
+    delivery = shop.get("delivery")
+    if delivery:
+        return f"Delivery to {city}: {delivery}"
+    return "Delivery information is not available yet."
+
+
+@router.post("/public", status_code=status.HTTP_201_CREATED)
+def create_public_order(shop_id: str, order_in: PublicOrderCreate) -> dict:
+    """Create a customer order for a public shop without owner authentication."""
+    if not ObjectId.is_valid(shop_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid shop id")
+    if not ObjectId.is_valid(order_in.product_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid product id")
+
+    shop = shops_collection.find_one({"_id": ObjectId(shop_id)})
+    if not shop:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shop not found")
+
+    product = products_collection.find_one(
+        {"_id": ObjectId(order_in.product_id), "shop_id": shop["_id"]}
+    )
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    if product.get("available") is not True or product.get("stock", 0) < order_in.quantity:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Product is not available")
+
+    now = now_utc()
+    order = {
+        "customer_name": order_in.customer_name,
+        "delivery_address": order_in.address,
+        "city": order_in.city,
+        "phone_number": order_in.customer_phone,
+        "payment_method": order_in.payment_method,
+        "quantity": order_in.quantity,
+        "product_id": product["_id"],
+        "owner_id": shop.get("owner_id"),
+        "shop_id": shop["_id"],
+        "status": "pending",
+        "delivered": False,
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = orders_collection.insert_one(order)
+    total_price = product.get("price", 0) * order_in.quantity
+
+    return {
+        "order_id": str(result.inserted_id),
+        "status": "pending",
+        "product": serialize_document(product),
+        "quantity": order_in.quantity,
+        "total_price": total_price,
+        "delivery": _delivery_summary(shop, order_in.city),
+    }
 
 
 @router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)

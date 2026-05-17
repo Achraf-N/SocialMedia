@@ -12,6 +12,7 @@ from lg_app.nodes.product_info import product_info_agent
 from lg_app.nodes.price import price_agent
 from lg_app.nodes.delivery import delivery_agent
 from lg_app.nodes.payment import payment_agent
+from lg_app.nodes.order import order_agent
 from lg_app.nodes.greeting import greeting_agent
 from lg_app.nodes.small_talk import small_talk_agent
 from lg_app.nodes.unknown import unknown_agent
@@ -24,6 +25,8 @@ def route_by_intent(state: ChatState) -> str:
     intent_to_node = {
         "product_list": "product_list_agent",
         "product_info_question": "product_info_agent",
+        "availability_question": "product_info_agent",
+        "order_intent": "order_agent",
         "price_question": "price_agent",
         "delivery_question": "delivery_agent",
         "payment_question": "payment_agent",
@@ -52,6 +55,7 @@ def get_graph():
     graph.add_node("price_agent", price_agent)
     graph.add_node("delivery_agent", delivery_agent)
     graph.add_node("payment_agent", payment_agent)
+    graph.add_node("order_agent", order_agent)
     graph.add_node("greeting_agent", greeting_agent)
     graph.add_node("small_talk_agent", small_talk_agent)
     graph.add_node("unknown_agent", unknown_agent)
@@ -77,6 +81,7 @@ def get_graph():
             "price_agent": "price_agent",
             "delivery_agent": "delivery_agent",
             "payment_agent": "payment_agent",
+            "order_agent": "order_agent",
             "greeting_agent": "greeting_agent",
             "small_talk_agent": "small_talk_agent",
             "human_needed_agent": "human_needed_agent",
@@ -87,7 +92,7 @@ def get_graph():
     # All agent nodes lead to save state
     agent_nodes = [
         "product_list_agent", "product_info_agent", "price_agent",
-        "delivery_agent", "payment_agent", "greeting_agent",
+        "delivery_agent", "payment_agent", "order_agent", "greeting_agent",
         "small_talk_agent", "unknown_agent", "human_needed_agent"
     ]
     for agent in agent_nodes:

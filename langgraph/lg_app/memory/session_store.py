@@ -1,12 +1,47 @@
-"""In-memory session store for user context."""
+"""Persistent session store for user context."""
 
+import json
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 # In-memory session storage
 sessions = {}
+SESSION_FILE = Path(__file__).resolve().parents[2] / ".chat_sessions.json"
 
 
-def get_session_state(session_id: str) -> dict:
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _get_collection():
+    """Use backend MongoDB when this module runs inside the backend app."""
+    try:
+        from app.core.database import chat_sessions_collection
+
+        return chat_sessions_collection
+    except Exception:
+        return None
+
+
+def _file_key(session_id: str, shop_id: Optional[str]) -> str:
+    return f"{shop_id or ''}:{session_id}"
+
+
+def _load_file_sessions() -> dict:
+    if not SESSION_FILE.exists():
+        return {}
+    try:
+        return json.loads(SESSION_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_file_sessions(data: dict) -> None:
+    SESSION_FILE.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+
+
+def get_session_state(session_id: str, shop_id: Optional[str] = None) -> dict:
     """
     Retrieve session state.
     
@@ -16,18 +51,42 @@ def get_session_state(session_id: str) -> dict:
     Returns:
         dict with keys: active_product, last_intent
     """
+    default_state = {
+        "active_product": None,
+        "current_product_id": None,
+        "current_product_name": None,
+        "last_intent": None,
+        "extracted_city": None,
+        "extracted_address": None,
+        "pending_order_json": None,
+    }
+
+    collection = _get_collection()
+    if collection is not None:
+        record = collection.find_one({"session_id": session_id, "shop_id": shop_id})
+        if record:
+            return {**default_state, **record}
+
+    file_sessions = _load_file_sessions()
+    file_state = file_sessions.get(_file_key(session_id, shop_id))
+    if file_state:
+        return {**default_state, **file_state}
+
     if session_id not in sessions:
-        sessions[session_id] = {
-            "active_product": None,
-            "last_intent": None
-        }
+        sessions[session_id] = default_state.copy()
     return sessions[session_id]
 
 
 def save_session_state(
     session_id: str,
+    shop_id: Optional[str] = None,
     active_product: Optional[str] = None,
-    last_intent: Optional[str] = None
+    current_product_id: Optional[str] = None,
+    current_product_name: Optional[str] = None,
+    last_intent: Optional[str] = None,
+    extracted_city: Optional[str] = None,
+    extracted_address: Optional[str] = None,
+    pending_order_json: Optional[dict] = None,
 ) -> None:
     """
     Save session state.
@@ -37,10 +96,42 @@ def save_session_state(
         active_product: Currently active product name
         last_intent: Last detected intent
     """
-    if session_id not in sessions:
-        sessions[session_id] = {}
-    
-    if active_product is not None:
-        sessions[session_id]["active_product"] = active_product
-    if last_intent is not None:
-        sessions[session_id]["last_intent"] = last_intent
+    existing = get_session_state(session_id, shop_id)
+    updates = {
+        "session_id": session_id,
+        "shop_id": shop_id,
+        "updated_at": _now(),
+    }
+
+    for key, value in {
+        "active_product": active_product,
+        "current_product_id": current_product_id,
+        "current_product_name": current_product_name,
+        "last_intent": last_intent,
+        "extracted_city": extracted_city,
+        "extracted_address": extracted_address,
+        "pending_order_json": pending_order_json,
+    }.items():
+        if value is not None:
+            updates[key] = value
+
+    merged = {**existing, **updates}
+    sessions[session_id] = merged
+
+    collection = _get_collection()
+    if collection is not None:
+        collection.update_one(
+            {"session_id": session_id, "shop_id": shop_id},
+            {
+                "$set": updates,
+                "$setOnInsert": {"created_at": _now()},
+            },
+            upsert=True,
+        )
+        return
+
+    file_sessions = _load_file_sessions()
+    file_sessions[_file_key(session_id, shop_id)] = {
+        key: value for key, value in merged.items() if key != "_id"
+    }
+    _save_file_sessions(file_sessions)

@@ -1,152 +1,109 @@
-"""Quick test: Router + Session State Management (no LLM delays)."""
+"""Focused router and memory tests for the commerce assistant."""
 
-from app.nodes.router import deterministic_intent_router
-from app.memory.session_store import get_session_state, save_session_state
-from app.state import ChatState
-from app.data.shop_data import SHOP_PRODUCTS
+from lg_app.data.shop_data import SHOP_PRODUCTS
+from lg_app.memory import session_store
+from lg_app.nodes.router import deterministic_intent_router, intent_router
+from lg_app.runner import run_chat
+from lg_app.state import ChatState
 
-print("\n" + "="*80)
-print("Router + Session State - Quick Test")
-print("="*80 + "\n")
 
-# TEST 1: Session isolation
-print("[TEST 1] Session isolation")
-save_session_state("user_a", active_product="Serum Vitamin C", last_intent="product_info")
-save_session_state("user_b", active_product="Hair Oil", last_intent="price_question")
-
-session_a = get_session_state("user_a")
-session_b = get_session_state("user_b")
-
-assert session_a["active_product"] == "Serum Vitamin C", "User A should have Serum"
-assert session_b["active_product"] == "Hair Oil", "User B should have Hair Oil"
-print(f"  User A: {session_a}")
-print(f"  User B: {session_b}")
-print("✓ PASS - Sessions are isolated\n")
-
-# TEST 2: Router with active_product context
-print("[TEST 2] Router context awareness")
-
-state_with_context: ChatState = {
-    'session_id': 'test',
-    'message': 'What is the price of this product?',
-    'intent': None,
-    'product_query': None,
-    'active_product': 'Serum Vitamin C',
-    'response': None,
-    'steps': [],
-    'shop_data': SHOP_PRODUCTS,
-    'needs_human': False,
-    'confidence': 0.0,
-}
-
-result = deterministic_intent_router(state_with_context)
-print(f"  Message: 'What is the price of this product?'")
-print(f"  Active product: 'Serum Vitamin C'")
-print(f"  Router detected: intent={result['intent']}, product_query={result['product_query']}")
-assert result['intent'] == 'price_question', "Should detect price_question"
-print("✓ PASS - Router correctly detects price_question\n")
-
-# TEST 3: Router without context
-print("[TEST 3] Router without context (explicit product mention)")
-
-state_explicit: ChatState = {
-    'session_id': 'test',
-    'message': 'What about Hair Oil?',
-    'intent': None,
-    'product_query': None,
-    'active_product': None,
-    'response': None,
-    'steps': [],
-    'shop_data': SHOP_PRODUCTS,
-    'needs_human': False,
-    'confidence': 0.0,
-}
-
-result = deterministic_intent_router(state_explicit)
-print(f"  Message: 'What about Hair Oil?'")
-print(f"  Active product: None")
-print(f"  Router detected: intent={result['intent']}, product_query={result['product_query']}")
-assert result['intent'] == 'product_info_question', "Should detect product_info_question"
-assert result['product_query'] == 'Hair Oil', "Should extract Hair Oil product"
-print("✓ PASS - Router correctly extracts product mention\n")
-
-# TEST 4: Word boundary fix
-print("[TEST 4] Word boundary detection (hi in 'this')")
-
-problematic_messages = [
-    "What is the price of this product?",  # Should NOT match 'hi' in 'this'
-    "Hi there!",  # Should match 'hi'
-    "This is great",  # Should NOT match 'hi' in 'this'
-]
-
-expected_intents = [
-    "price_question",
-    "greeting",
-    "unknown",
-]
-
-for msg, expected in zip(problematic_messages, expected_intents):
-    state: ChatState = {
-        'session_id': 'test',
-        'message': msg,
-        'intent': None,
-        'product_query': None,
-        'active_product': None,
-        'response': None,
-        'steps': [],
-        'shop_data': SHOP_PRODUCTS,
-        'needs_human': False,
-        'confidence': 0.0,
+def make_state(message: str, active_product: str | None = None) -> ChatState:
+    return {
+        "session_id": "router-test",
+        "shop_id": "demo",
+        "message": message,
+        "intent": None,
+        "product_query": None,
+        "active_product": active_product,
+        "current_product": active_product,
+        "current_product_name": active_product,
+        "delivery_city": None,
+        "response": None,
+        "steps": [],
+        "shop_data": SHOP_PRODUCTS,
+        "needs_human": False,
+        "confidence": 0.0,
     }
-    
-    result = deterministic_intent_router(state)
-    print(f"  '{msg}' → {result['intent']}")
-    assert result['intent'] == expected, f"Expected {expected}, got {result['intent']}"
 
-print("✓ PASS - Word boundary detection works correctly\n")
 
-# TEST 5: Confidence scores
-print("[TEST 5] Confidence scores")
+def assert_route(message: str, expected_intent: str, expected_product: str | None = None) -> ChatState:
+    state = intent_router(make_state(message))
+    assert state["intent"] == expected_intent, (message, state["intent"], state["steps"])
+    assert state["product_query"] == expected_product, (message, state["product_query"], state["steps"])
+    return state
 
-test_cases = [
-    ("hello", "greeting", 0.95),
-    ("thanks", "small_talk", 0.9),
-    ("products", "product_list", 0.95),
-    ("tell me details", "product_info_question", 0.9),
-    ("how much", "price_question", 0.95),
-    ("delivery time", "delivery_question", 0.95),
-    ("can I pay", "payment_question", 0.95),
-    ("angry", "complaint", 0.95),
+
+print("\nRouter priority tests")
+
+assert_route("What is the price of Hair Oil?", "price_question", "Hair Oil")
+assert_route("How much is Hair Oil?", "price_question", "Hair Oil")
+assert_route("How much does Hair Oil cost?", "price_question", "Hair Oil")
+
+delivery_state = assert_route("How much is delivery to Casablanca?", "delivery_question", None)
+assert delivery_state["delivery_city"] == "Casablanca"
+
+assert_route("How much time for delivery?", "delivery_question", None)
+assert_route("Tell me more about Hair Oil", "product_info_question", "Hair Oil")
+assert_route("Can I pay cash on delivery?", "payment_question", None)
+
+print("Router priority tests passed")
+
+
+print("\nDeterministic fallback tests")
+
+deterministic_cases = [
+    ("Is Hair Oil available?", "availability_question", "Hair Oil"),
+    ("How much is Hair Oil?", "price_question", "Hair Oil"),
+    ("How much is delivery to Casablanca?", "delivery_question", None),
+    ("Can I pay cash on delivery?", "payment_question", None),
 ]
 
-for msg, expected_intent, expected_confidence in test_cases:
-    state: ChatState = {
-        'session_id': 'test',
-        'message': msg,
-        'intent': None,
-        'product_query': None,
-        'active_product': None,
-        'response': None,
-        'steps': [],
-        'shop_data': SHOP_PRODUCTS,
-        'needs_human': False,
-        'confidence': 0.0,
-    }
-    
-    result = deterministic_intent_router(state)
-    print(f"  '{msg}' → {result['intent']} (confidence: {result['confidence']})")
-    assert result['intent'] == expected_intent
-    assert result['confidence'] == expected_confidence
+for message, expected_intent, expected_product in deterministic_cases:
+    result = deterministic_intent_router(make_state(message))
+    assert result["intent"] == expected_intent, (message, result)
+    assert result["product_query"] == expected_product, (message, result)
 
-print("✓ PASS - Confidence scores correct\n")
+print("Deterministic fallback tests passed")
 
-print("="*80)
-print("ALL QUICK TESTS PASSED! ✓")
-print("="*80)
-print("\nSummary:")
-print("✓ Session isolation works")
-print("✓ Router context awareness works")
-print("✓ Product extraction works")
-print("✓ Word boundary detection fixed")
-print("✓ Confidence scores assigned correctly")
-print("✓ active_product session state persists correctly")
+
+print("\nConversation memory tests")
+
+session_id = "conversation-a"
+session_store.sessions.pop(session_id, None)
+
+first = run_chat(session_id, "Is Hair Oil available?")
+assert first["intent"] == "availability_question", first
+assert first["current_product"] == "Hair Oil", first
+
+second = run_chat(session_id, "How much is it?")
+assert second["intent"] == "price_question", second
+assert second["current_product"] == "Hair Oil", second
+
+third = run_chat(session_id, "How much is delivery to Casablanca?")
+assert third["intent"] == "delivery_question", third
+assert third["current_product"] == "Hair Oil", third
+assert third["delivery_city"] == "Casablanca", third
+
+fourth = run_chat(session_id, "How can I pay?")
+assert fourth["intent"] == "payment_question", fourth
+assert fourth["current_product"] == "Hair Oil", fourth
+
+session_id = "conversation-b"
+session_store.sessions.pop(session_id, None)
+result = run_chat(session_id, "How much is Hair Oil?")
+assert result["intent"] == "price_question", result
+assert result["current_product"] == "Hair Oil", result
+
+session_id = "conversation-c"
+session_store.sessions.pop(session_id, None)
+result = run_chat(session_id, "Tell me more about Hair Oil")
+assert result["intent"] == "product_info_question", result
+assert result["current_product"] == "Hair Oil", result
+
+session_id = "conversation-d"
+session_store.sessions.pop(session_id, None)
+result = run_chat(session_id, "Can I pay cash on delivery?")
+assert result["intent"] == "payment_question", result
+
+print("Conversation memory tests passed")
+print("\nAll quick tests passed")

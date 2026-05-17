@@ -26,5 +26,6 @@ class ShopPublicResponse(BaseModel):
     id: str
     name: str
     delivery: str
+    payment: str | None = None
     created_at: datetime
     updated_at: datetime

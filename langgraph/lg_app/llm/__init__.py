@@ -46,9 +46,12 @@ class OllamaLLM:
             payload = {
                 "model": self.model,
                 "prompt": full_prompt,
-                "temperature": temperature,
-                "num_predict": max_tokens,
                 "stream": False,
+                "think": False,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                },
             }
             
             response = requests.post(self.api_url, json=payload, timeout=60)

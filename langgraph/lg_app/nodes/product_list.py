@@ -29,6 +29,41 @@ def product_list_agent(state: ChatState) -> ChatState:
         state["steps"].append("Generated product list response")
         return state
 
+    wants_cheapest = any(
+        phrase in message
+        for phrase in [
+            "cheapest",
+            "lowest price",
+            "least expensive",
+            "low price",
+            "budget",
+        ]
+    )
+    wants_most_expensive = any(
+        phrase in message
+        for phrase in [
+            "most expensive",
+            "highest price",
+            "premium",
+        ]
+    )
+
+    if wants_cheapest:
+        product = min(selected_products, key=lambda p: p.get("price", 0))
+        state["response"] = (
+            f"The cheapest product is {product['name']} at {product['price']} MAD."
+        )
+        state["steps"].append("Generated cheapest product response")
+        return state
+
+    if wants_most_expensive:
+        product = max(selected_products, key=lambda p: p.get("price", 0))
+        state["response"] = (
+            f"The most expensive product is {product['name']} at {product['price']} MAD."
+        )
+        state["steps"].append("Generated most expensive product response")
+        return state
+
     product_names = [p["name"] for p in selected_products]
 
     if wants_available_only:
