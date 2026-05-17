@@ -1,0 +1,21 @@
+from typing import Any
+
+from bson import ObjectId
+
+
+def serialize_document(document: dict[str, Any] | None) -> dict[str, Any] | None:
+    if document is None:
+        return None
+
+    serialized = dict(document)
+    serialized["id"] = str(serialized.pop("_id"))
+
+    for key in ("owner_id", "shop_id"):
+        if key in serialized and isinstance(serialized[key], ObjectId):
+            serialized[key] = str(serialized[key])
+
+    return serialized
+
+
+def serialize_documents(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [serialize_document(document) for document in documents if document is not None]
