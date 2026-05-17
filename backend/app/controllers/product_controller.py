@@ -12,7 +12,7 @@ from app.models.product_model import (
     ProductResponse,
     ProductUpdate,
 )
-from app.views.serializers import serialize_document, serialize_product, serialize_products
+from app.views.serializers import serialize_product, serialize_products, serialize_shop_public
 
 router = APIRouter(prefix="/shops/{shop_id}/products", tags=["products"])
 
@@ -53,6 +53,7 @@ def create_product(
     _upsert_category(shop.get("owner_id"), shop_obj_id, product_in.category)
     product = {
         **product_in.model_dump(),
+        "image": "",
         "owner_id": shop.get("owner_id"),
         "shop_id": shop_obj_id,
         "created_at": now,
@@ -63,8 +64,8 @@ def create_product(
 
 
 
-@router.get("", response_model=list[ProductResponse])
-def list_products(shop_id: str) -> list[dict]:
+@router.get("", response_model=ProductListWithShopResponse)
+def list_products(shop_id: str) -> dict:
     """List all products for a shop (public endpoint)."""
     
     if not ObjectId.is_valid(shop_id):
@@ -86,7 +87,7 @@ def list_products(shop_id: str) -> list[dict]:
     products = list(
         products_collection.find({"shop_id": shop_obj_id}).sort("created_at", -1)
     )
-    return {"shop": serialize_document(shop), "products": serialize_products(products)}
+    return {"shop": serialize_shop_public(shop), "products": serialize_products(products)}
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -115,9 +116,7 @@ def get_product(shop_id: str, product_id: str) -> dict:
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
-    #return {"shop": serialize_document(shop), "product": serialize_product(product)}
-
-    return serialize_document(product)
+    return serialize_product(product)
 
 @router.patch("/{product_id}", response_model=ProductResponse)
 def update_product(
