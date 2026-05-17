@@ -34,8 +34,8 @@ mongodb://localhost:27017
 - `PATCH /api/shops/{shop_id}`
 - `DELETE /api/shops/{shop_id}`
 - `POST /api/shops/{shop_id}/products`
-- `GET /api/shops/{shop_id}/products`
-- `GET /api/shops/{shop_id}/products/{product_id}`
+- `GET /api/shops/{shop_id}/products` returns `{ "shop": {}, "products": [] }`
+- `GET /api/shops/{shop_id}/products/{product_id}` returns `{ "shop": {}, "product": {} }`
 - `PATCH /api/shops/{shop_id}/products/{product_id}`
 - `DELETE /api/shops/{shop_id}/products/{product_id}`
 - `POST /api/shops/{shop_id}/categories`

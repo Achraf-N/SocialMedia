@@ -4,7 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.database import categories_collection, products_collection
 from app.core.dependencies import get_current_owner, get_owned_shop
 from app.models.common import now_utc
-from app.models.product_model import ProductCreate, ProductResponse, ProductUpdate
+from app.models.product_model import (
+    ProductCreate,
+    ProductDetailWithShopResponse,
+    ProductListWithShopResponse,
+    ProductResponse,
+    ProductUpdate,
+)
 from app.views.serializers import serialize_document, serialize_documents
 
 router = APIRouter(prefix="/shops/{shop_id}/products", tags=["products"])
@@ -47,21 +53,21 @@ def create_product(
     return serialize_document(products_collection.find_one({"_id": result.inserted_id}))
 
 
-@router.get("", response_model=list[ProductResponse])
+@router.get("", response_model=ProductListWithShopResponse)
 def list_products(
     shop_id: str,
     owner: dict = Depends(get_current_owner),
-) -> list[dict]:
+) -> dict:
     shop = get_owned_shop(shop_id, owner)
     products = list(
         products_collection.find({"owner_id": owner["_id"], "shop_id": shop["_id"]}).sort(
             "created_at", -1
         )
     )
-    return serialize_documents(products)
+    return {"shop": serialize_document(shop), "products": serialize_documents(products)}
 
 
-@router.get("/{product_id}", response_model=ProductResponse)
+@router.get("/{product_id}", response_model=ProductDetailWithShopResponse)
 def get_product(
     shop_id: str,
     product_id: str,
@@ -77,7 +83,7 @@ def get_product(
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
-    return serialize_document(product)
+    return {"shop": serialize_document(shop), "product": serialize_document(product)}
 
 
 @router.patch("/{product_id}", response_model=ProductResponse)

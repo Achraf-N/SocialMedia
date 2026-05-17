@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.models.shop_model import ShopPublicResponse
+
 
 class ProductCreate(BaseModel):
     name: str = Field(min_length=1, max_length=160)
@@ -31,8 +33,6 @@ class ProductUpdate(BaseModel):
 
 class ProductResponse(BaseModel):
     id: str
-    owner_id: str
-    shop_id: str
     name: str
     price: float
     description: str
@@ -45,3 +45,13 @@ class ProductResponse(BaseModel):
     image: str
     created_at: datetime
     updated_at: datetime
+
+
+class ProductListWithShopResponse(BaseModel):
+    shop: ShopPublicResponse
+    products: list[ProductResponse]
+
+
+class ProductDetailWithShopResponse(BaseModel):
+    shop: ShopPublicResponse
+    product: ProductResponse
