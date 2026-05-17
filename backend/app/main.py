@@ -60,7 +60,7 @@ class ChatRequest(BaseModel):
     """Chat request from frontend."""
     message: str
     session_id: str
-    shop_id: Optional[str] = "6a09d431697b1d38b68a50ce"  # Default shop ID (mojaa)
+    shop_id: str
 
 
 class ChatResponse(BaseModel):
@@ -101,7 +101,7 @@ def chat(request: ChatRequest) -> ChatResponse:
     {
         "message": "What products do you have?",
         "session_id": "user123",
-        "shop_id": "6a09d431697b1d38b68a50ce"  (optional, has default)
+        "shop_id": "your_shop_id"
     }
     
     Returns:
