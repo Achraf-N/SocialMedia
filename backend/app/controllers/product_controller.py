@@ -63,9 +63,9 @@ def create_product(
 
 
 
-@router.get("", response_model=list[ProductResponse])
-def list_products(shop_id: str) -> list[dict]:
-    """List all products for a shop (public endpoint)."""
+@router.get("", response_model=ProductListWithShopResponse)
+def list_products(shop_id: str) -> dict:
+    """List all products for a shop with public shop details."""
     
     if not ObjectId.is_valid(shop_id):
         raise HTTPException(
@@ -87,7 +87,10 @@ def list_products(shop_id: str) -> list[dict]:
         products_collection.find({"shop_id": shop_obj_id}).sort("created_at", -1)
     )
 
-    return serialize_documents(products)
+    return {
+        "shop": serialize_document(shop),
+        "products": serialize_documents(products),
+    }
 
 
 @router.get("/{product_id}", response_model=ProductResponse)

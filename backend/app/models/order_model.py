@@ -17,6 +17,16 @@ class OrderCreate(BaseModel):
     delivered: bool = False
 
 
+class PublicOrderCreate(BaseModel):
+    product_id: str = Field(min_length=1)
+    quantity: int = Field(default=1, ge=1)
+    customer_name: str = Field(min_length=1, max_length=160)
+    customer_phone: str = Field(min_length=1, max_length=40)
+    city: str = Field(min_length=1, max_length=120)
+    address: str = Field(min_length=1, max_length=300)
+    payment_method: str | None = Field(default=None, max_length=80)
+
+
 class OrderUpdate(BaseModel):
     customer_name: str | None = Field(default=None, min_length=1, max_length=160)
     delivery_address: str | None = Field(default=None, min_length=1, max_length=300)

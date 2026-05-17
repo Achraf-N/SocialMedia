@@ -13,9 +13,12 @@ def payment_agent(state: ChatState) -> ChatState:
     try:
         llm = get_llm()
         
+        shop_info = state.get("shop_info") or SHOP_INFO
+        payment_info = shop_info.get("payment") or SHOP_INFO.get("payment")
+
         prompt = PROMPT_TEMPLATES["payment"].format(
             message=state["message"],
-            payment_info=SHOP_INFO["payment"],
+            payment_info=payment_info or "Payment information is not available yet.",
         )
         
         response = llm.generate(
@@ -27,7 +30,7 @@ def payment_agent(state: ChatState) -> ChatState:
     
     except Exception as e:
         # Fallback to deterministic response if LLM fails
-        response = SHOP_INFO["payment"]
+        response = (state.get("shop_info") or SHOP_INFO).get("payment") or "Payment information is not available yet."
     
     state["response"] = response
     state["steps"].append("Generated payment response")
