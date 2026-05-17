@@ -1,49 +1,51 @@
 """Node: Product list agent."""
 
-import json
 from lg_app.state import ChatState
-from lg_app.llm import get_llm
-from lg_app.llm.prompts import SYSTEM_PROMPTS, PROMPT_TEMPLATES
 
 
 def product_list_agent(state: ChatState) -> ChatState:
-    """Handle product list request using Ollama LLM."""
-    
-    # Generate response using Ollama LLM
-    try:
-        llm = get_llm()
-        
-        shop_data_json = json.dumps([{
-            "name": p["name"],
-            "price": p["price"],
-            "description": p["description"],
-            "available": p["available"],
-        } for p in state["shop_data"]], indent=2)
-        
-        prompt = PROMPT_TEMPLATES["product_list"].format(
-            message=state["message"],
-            shop_data=shop_data_json,
+    """Handle product list request deterministically."""
+
+    message = state["message"].lower()
+    products = state.get("shop_data", [])
+
+    wants_available_only = any(
+        phrase in message
+        for phrase in [
+            "available",
+            "in stock",
+            "stock",
+            "disponible",
+        ]
+    )
+
+    if wants_available_only:
+        selected_products = [p for p in products if p.get("available") is True]
+    else:
+        selected_products = products
+
+    if not selected_products:
+        state["response"] = "I could not find matching products at the moment."
+        state["steps"].append("Generated product list response")
+        return state
+
+    product_names = [p["name"] for p in selected_products]
+
+    if wants_available_only:
+        state["response"] = (
+            "Available products include: "
+            + ", ".join(product_names)
+            + "."
         )
-        
-        response_text = llm.generate(
-            prompt=prompt,
-            system=SYSTEM_PROMPTS["product_list"],
-            temperature=0.3,
-            max_tokens=256,
+    else:
+        state["response"] = (
+            "We currently offer: "
+            + ", ".join(product_names)
+            + "."
         )
-        
-        # Parse JSON response
-        result = json.loads(response_text)
-        state["response"] = result.get("response", "We offer various products. Please ask for more details.")
-    
-    except (json.JSONDecodeError, Exception):
-        # Fallback to deterministic response if LLM fails
-        available_products = [p["name"] for p in state["shop_data"] if p["available"]]
-        
-        if available_products:
-            state["response"] = f"We currently offer: {', '.join(available_products)}. Would you like to know more about any of them?"
-        else:
-            state["response"] = "Sorry, all products are currently unavailable. Please check back later."
-    
-    state["steps"].append("Generated product list response")
+
+    state["steps"].append(
+        f"Generated product list response with {len(selected_products)} products"
+    )
+
     return state

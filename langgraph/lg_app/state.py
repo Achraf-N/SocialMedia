@@ -7,6 +7,7 @@ from typing import Optional
 class ChatState(TypedDict):
     """State definition for the conversational AI workflow."""
     session_id: str
+    shop_id: str  # Shop ID to fetch products from backend
     message: str
     intent: Optional[str]
     product_query: Optional[str]
