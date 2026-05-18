@@ -30,6 +30,7 @@ Possible intents:
 * product_info_question
 * availability_question
 * order_creation
+* order_status
 * price_question
 * delivery_question
 * payment_question
@@ -83,11 +84,12 @@ Use this priority when multiple meanings are possible:
 4. payment_question
 5. price_question
 6. availability_question
-7. order_creation
-8. product_info_question
-9. greeting / small_talk
-10. complaint / human_needed
-11. unknown
+7. order_status
+8. order_creation
+9. product_info_question
+10. greeting / small_talk
+11. complaint / human_needed
+12. unknown
 
 Important:
 * Delivery beats price when delivery/shipping/city/address appears.
@@ -331,7 +333,31 @@ Then:
 
 ---
 
-8. order_creation
+8. order_status
+
+Use when user asks to check, track, or read their order status:
+* order status
+* where is my order
+* track my order
+* is my order confirmed
+* is my order shipped
+* is my order delivered
+
+Do NOT use order_creation for status lookup questions.
+
+Examples:
+User: "what is my order status?"
+Then:
+{
+  "intent": "order_status",
+  "product_query": null,
+  "confidence": 0.95,
+  "needs_human": false
+}
+
+---
+
+9. order_creation
 
 Use when user wants to buy/order/reserve/confirm:
 * I want to order
@@ -394,7 +420,7 @@ Then:
 
 ---
 
-9. greeting
+10. greeting
 
 Use for:
 * hello
@@ -410,7 +436,7 @@ Then product_query = null.
 
 ---
 
-10. small_talk
+11. small_talk
 
 Use for:
 * thanks / thank you
@@ -424,7 +450,7 @@ Then product_query = null.
 
 ---
 
-11. complaint / human_needed
+12. complaint / human_needed
 
 complaint:
 * angry
@@ -443,7 +469,7 @@ Set needs_human = true.
 
 ---
 
-12. unknown
+13. unknown
 
 Use only if the request is truly unclear and cannot be mapped to any route.
 Do not guess a product.
