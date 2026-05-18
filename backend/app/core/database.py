@@ -18,8 +18,8 @@ def create_indexes() -> None:
     owners_collection.create_index([("email", ASCENDING)], unique=True)
     shops_collection.create_index([("owner_id", ASCENDING)])
     products_collection.create_index([("owner_id", ASCENDING), ("shop_id", ASCENDING)])
-    orders_collection.create_index([("owner_id", ASCENDING), ("shop_id", ASCENDING)])
-    orders_collection.create_index([("product_id", ASCENDING)])
+    orders_collection.create_index([("shop_id", ASCENDING)])
+    orders_collection.create_index([("session_id", ASCENDING)])
     chat_sessions_collection.create_index([("session_id", ASCENDING), ("shop_id", ASCENDING)], unique=True)
     categories_collection.create_index(
         [("owner_id", ASCENDING), ("shop_id", ASCENDING), ("name", ASCENDING)],
