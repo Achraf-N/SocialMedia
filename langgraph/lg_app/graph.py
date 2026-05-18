@@ -29,6 +29,7 @@ def route_by_intent(state: ChatState) -> str:
         "product_info_question": "product_info_agent",
         "availability_question": "product_info_agent",
         "order_intent": "order_agent",
+        "order_creation": "order_agent",
         "price_question": "price_agent",
         "delivery_question": "delivery_agent",
         "payment_question": "payment_agent",
