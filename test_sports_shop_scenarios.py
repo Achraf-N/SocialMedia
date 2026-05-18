@@ -77,6 +77,11 @@ if __name__ == "__main__":
     assert_contains(nike["response"], "Nike Air Max 270", "Nike Dri-FIT")
     assert "Adidas Ultraboost" not in nike["response"], nike
 
+    first_nike = chat("sports-brand-nike", "first one please")
+    assert first_nike["intent"] == "product_info_question", first_nike
+    assert first_nike["current_product"] == "Nike Air Max 270", first_nike
+    assert_contains(first_nike["response"], "Nike Air Max 270", "1299", "Nike")
+
     adidas = chat("sports-brand-adidas", "show me Adidas products")
     assert adidas["intent"] == "product_list", adidas
     assert adidas["current_product"] is None, adidas

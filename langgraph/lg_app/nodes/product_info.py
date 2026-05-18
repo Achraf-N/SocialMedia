@@ -1,6 +1,7 @@
 """Node: Product info agent."""
 
 import json
+import re
 from lg_app.state import ChatState
 from lg_app.llm import get_llm
 from lg_app.llm.prompts import SYSTEM_PROMPTS, PROMPT_TEMPLATES
@@ -28,6 +29,22 @@ def product_info_agent(state: ChatState) -> ChatState:
         return state
 
     message = state["message"].lower()
+    if re.search(r"\b(product\s*\d+|\d+(?:st|nd|rd|th)\s+one|first one|second one|third one|fourth one|the first|the second|the third|the fourth)\b", message):
+        details = (product.get("description") or "No description available yet.").rstrip(" .")
+        price = product.get("price")
+        stock = product.get("stock")
+        brand = product.get("brand")
+        parts = [f"{product['name']}: {details}"]
+        if price is not None:
+            parts.append(f"Price: {price} MAD")
+        if brand:
+            parts.append(f"Brand: {brand}")
+        if stock is not None:
+            parts.append(f"Stock: {stock}")
+        state["response"] = ". ".join(parts) + "."
+        state["steps"].append("Generated product info response")
+        return state
+
     if "brand" in message:
         brand = product.get("brand")
         if brand:
