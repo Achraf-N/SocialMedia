@@ -25,6 +25,7 @@ Return ONLY valid JSON.
 Possible routes:
 - greeting
 - small_talk
+- shop_info_question
 - product_list
 - product_info_question
 - availability_question
@@ -47,6 +48,7 @@ Return EXACTLY this JSON shape:
 
 Rules:
 - all products, catalog, product list, what do you offer, services -> product_list
+- shop name, store name, business name, about this shop -> shop_info_question
 - cheapest, lowest price, most expensive, compare products -> product_list
 - one product, details, info, available, usage, benefits, ingredients -> product_info_question
 - is it available, in stock, stock for one product -> availability_question
@@ -54,8 +56,12 @@ Rules:
 - price, cost, discount, how much -> price_question
 - delivery, shipping, delivery cost, address, city, arrive, how long, how much time -> delivery_question
 - payment, pay, cash, card, bank transfer -> payment_question
-- hello, hi, salam, hey -> greeting
-- thanks, ok, okay, cool, nice, bye -> small_talk
+- hello, hi, salam, slm, hey, bonjour, salut, slt -> greeting
+- thanks, ok, okay, cool, nice, bye, merci, chokran, shokran -> small_talk
+- ch7al, chhal, taman, tamane, prix, combien -> price_question
+- kayn, kayna, disponible, mawjod -> availability_question
+- bghit ncommandi, commander, commande, acheter -> order_intent
+- livraison, katsifto, tsifto, sifto -> delivery_question
 - angry, problem, refund, support, late, bad -> complaint and needs_human=true
 - unclear -> unknown
 

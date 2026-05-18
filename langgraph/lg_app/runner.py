@@ -4,14 +4,14 @@ from lg_app.state import ChatState
 from lg_app.graph import get_graph
 
 
-def run_chat(session_id: str, message: str, shop_id: str = "6a09d431697b1d38b68a50ce") -> dict:
+def run_chat(session_id: str, message: str, shop_id: str) -> dict:
     """
     Run a chat message through the LangGraph workflow.
     
     Args:
         session_id: User session identifier
         message: User message
-        shop_id: Shop ID to fetch products from (defaults to demo shop)
+        shop_id: Shop ID to fetch products from
         
     Returns:
         dict with keys: response, intent, active_product, confidence, steps
@@ -34,6 +34,8 @@ def run_chat(session_id: str, message: str, shop_id: str = "6a09d431697b1d38b68a
         "delivery_address": None,
         "pending_order_json": None,
         "shop_info": None,
+        "catalog_filter": None,
+        "last_catalog_products": None,
         "response": None,
         "steps": ["Received message"],
         "shop_data": [],
@@ -61,6 +63,7 @@ def run_chat(session_id: str, message: str, shop_id: str = "6a09d431697b1d38b68a
 
 if __name__ == "__main__":
     """Test conversation with active_product session state."""
+    test_shop_id = "test-shop"
     
     print("\n" + "="*80)
     print("LangGraph Chatbot - Active Product State Management Test")
@@ -68,7 +71,7 @@ if __name__ == "__main__":
     
     # Test 1: Product info flow
     print("[TEST 1] Start conversation and ask about Serum")
-    result1 = run_chat("user1", "Tell me about Serum Vitamin C")
+    result1 = run_chat("user1", "Tell me about Serum Vitamin C", test_shop_id)
     print(f"Intent: {result1['intent']}")
     print(f"Active Product: {result1['active_product']}")
     print(f"Response: {result1['response'][:100]}...")
@@ -77,7 +80,7 @@ if __name__ == "__main__":
     
     # Test 2: Follow-up with "this product"
     print("[TEST 2] Follow-up: 'What is the price of this product?'")
-    result2 = run_chat("user1", "What is the price of this product?")
+    result2 = run_chat("user1", "What is the price of this product?", test_shop_id)
     print(f"Intent: {result2['intent']}")
     print(f"Active Product: {result2['active_product']}")
     print(f"Response: {result2['response'][:100]}...")
@@ -87,7 +90,7 @@ if __name__ == "__main__":
     
     # Test 3: Switch to different product
     print("[TEST 3] Switch product: 'What about Hair Oil?'")
-    result3 = run_chat("user1", "What about Hair Oil?")
+    result3 = run_chat("user1", "What about Hair Oil?", test_shop_id)
     print(f"Intent: {result3['intent']}")
     print(f"Active Product: {result3['active_product']}")
     print(f"Response: {result3['response'][:100]}...")
@@ -96,7 +99,7 @@ if __name__ == "__main__":
     
     # Test 4: Follow-up with "it"
     print("[TEST 4] Follow-up: 'How much is it?'")
-    result4 = run_chat("user1", "How much is it?")
+    result4 = run_chat("user1", "How much is it?", test_shop_id)
     print(f"Intent: {result4['intent']}")
     print(f"Active Product: {result4['active_product']}")
     print(f"Response: {result4['response'][:100]}...")
@@ -106,7 +109,7 @@ if __name__ == "__main__":
     
     # Test 5: Delivery question
     print("[TEST 5] Delivery question (general)")
-    result5 = run_chat("user1", "How long is delivery?")
+    result5 = run_chat("user1", "How long is delivery?", test_shop_id)
     print(f"Intent: {result5['intent']}")
     print(f"Active Product: {result5['active_product']}")
     print(f"Response: {result5['response'][:100]}...")
@@ -115,7 +118,7 @@ if __name__ == "__main__":
     
     # Test 6: New user session
     print("[TEST 6] New user session")
-    result6 = run_chat("user2", "What products do you have?")
+    result6 = run_chat("user2", "What products do you have?", test_shop_id)
     print(f"Intent: {result6['intent']}")
     print(f"Active Product: {result6['active_product']}")
     print(f"Response: {result6['response'][:100]}...")
@@ -125,21 +128,21 @@ if __name__ == "__main__":
     
     # Test 7: Session isolation
     print("[TEST 7] User2 selects Face Cream")
-    result7 = run_chat("user2", "Tell me about Face Cream")
+    result7 = run_chat("user2", "Tell me about Face Cream", test_shop_id)
     print(f"Intent: {result7['intent']}")
     print(f"Active Product: {result7['active_product']}")
     print(f"Response: {result7['response'][:100]}...")
     assert result7["active_product"] == "Face Cream", "User2 should have Face Cream"
     
     # Verify User1 still has Hair Oil
-    result7b = run_chat("user1", "What is this?")
+    result7b = run_chat("user1", "What is this?", test_shop_id)
     print(f"\nUser1 context: {result7b['active_product']}")
     assert result7b["active_product"] == "Hair Oil", "User1 should still have Hair Oil"
     print("✓ PASS - Sessions isolated\n")
     
     # Test 8: Greeting without changing context
     print("[TEST 8] Greeting (should not change active_product)")
-    result8 = run_chat("user2", "Hi there")
+    result8 = run_chat("user2", "Hi there", test_shop_id)
     print(f"Intent: {result8['intent']}")
     print(f"Active Product: {result8['active_product']}")
     assert result8["active_product"] == "Face Cream", "Active product should stay Face Cream"
@@ -173,7 +176,7 @@ if __name__ == "__main__":
     for session_id, message in test_cases:
         print(f"\n[User] {message}")
         
-        result = run_chat(session_id, message)
+        result = run_chat(session_id, message, test_shop_id)
         
         print(f"[Bot] {result['response']}")
         print(f"[Intent] {result['intent']}")

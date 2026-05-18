@@ -113,6 +113,12 @@ def post_chat(shop_id: str, session_id: str, message: str) -> dict:
 if __name__ == "__main__":
     shop_id = seed_shop()
     try:
+        missing_shop_id = client.post(
+            "/api/chat",
+            json={"session_id": "missing-shop", "message": "hello"},
+        )
+        assert missing_shop_id.status_code == 422
+
         product_response = client.get(f"/api/shops/{shop_id}/products")
         assert product_response.status_code == 200, product_response.text
         catalog = product_response.json()

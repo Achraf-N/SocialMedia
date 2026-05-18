@@ -30,6 +30,143 @@ def _normalize_text(text: str) -> str:
     return re.sub(r"[^a-z0-9+]+", " ", ascii_text.lower()).strip()
 
 
+def _is_shop_info_request(text: str) -> bool:
+    """Detect questions about the shop/store itself, not a product."""
+    return _contains_any(
+        text,
+        [
+            "shop name",
+            "store name",
+            "business name",
+            "what is the shop",
+            "what is this shop",
+            "what is the store",
+            "about this shop",
+            "about this store",
+        ],
+    )
+
+
+def _is_catalog_request(text: str) -> bool:
+    """Detect requests about the whole catalog instead of one active product."""
+    return _contains_any(
+        text,
+        [
+            "products details",
+            "product details in this shop",
+            "products details in this shop",
+            "all product",
+            "all products",
+            "what products",
+            "products in this shop",
+            "products in this store",
+            "service provided",
+            "services provided",
+            "what service",
+            "what services",
+            "what do you offer",
+            "what do you sell",
+            "what do you provide",
+            "catalog",
+            "all other product",
+            "all other products",
+            "other product",
+            "other products",
+            "price for all",
+            "prices for all",
+            "price of all",
+            "prices of all",
+            "all prices",
+            "every product",
+            "each product",
+        ],
+    )
+
+
+def _is_catalog_comparison_request(text: str) -> bool:
+    """Detect price/comparison requests that ask for a catalog item, not active product."""
+    return _contains_any(
+        text,
+        [
+            "expensive one",
+            "most expensive",
+            "highest price",
+            "premium one",
+            "cheapest one",
+            "cheap one",
+            "lowest price",
+            "least expensive",
+            "budget one",
+        ],
+    )
+
+
+def _catalog_filter_field(text: str, products: list[dict]) -> Optional[str]:
+    """Return brand/category name if the message references a product group."""
+    for product in products:
+        for key in ("brand", "category"):
+            value = product.get(key)
+            if value and _normalize_text(str(value)) in text:
+                return str(value)
+    return None
+
+
+def _product_from_catalog_index(text: str, state: ChatState) -> Optional[str]:
+    """Resolve references like product 1 / first product from last catalog response."""
+    catalog = state.get("last_catalog_products") or []
+    if not catalog:
+        return None
+
+    match = re.search(r"\bproduct\s*(\d+)\b", text)
+    if match:
+        index = int(match.group(1)) - 1
+        if 0 <= index < len(catalog):
+            return catalog[index]
+
+    ordinal_map = {
+        "first product": 0,
+        "second product": 1,
+        "third product": 2,
+        "fourth product": 3,
+        "1st product": 0,
+        "2nd product": 1,
+        "3rd product": 2,
+        "4th product": 3,
+    }
+    for phrase, index in ordinal_map.items():
+        if phrase in text and 0 <= index < len(catalog):
+            return catalog[index]
+
+    return None
+
+
+def _is_pending_order_field_reply(text: str, has_city: bool) -> bool:
+    """Detect replies that are likely filling missing order fields."""
+    if has_city:
+        return True
+    if re.search(r"\+?\d[\d\s.-]{7,}\d", text):
+        return True
+    return _contains_any(
+        text,
+        [
+            "name",
+            "phone",
+            "telephone",
+            "address",
+            "adresse",
+            "city",
+            "ville",
+            "cash",
+            "card",
+            "transfer",
+            "paypal",
+            "quantity",
+            "qty",
+            "my address",
+        ],
+    )
+
+
 def _extract_delivery_location(message: str) -> tuple[Optional[str], Optional[str]]:
     """Extract simple city/address details from common commerce phrasing."""
     known_cities = [
@@ -63,6 +200,16 @@ def _extract_delivery_location(message: str) -> tuple[Optional[str], Optional[st
         match = re.search(pattern, message, re.IGNORECASE)
         if match:
             candidate = match.group(1).strip(" .?!")
+            if _normalize_text(candidate) in {
+                "this shop",
+                "this store",
+                "the shop",
+                "the store",
+                "all other products",
+                "all products",
+                "other products",
+            }:
+                continue
             if any(char.isdigit() for char in candidate) or "," in candidate:
                 address = candidate
             break
@@ -79,6 +226,19 @@ def _extract_delivery_location(message: str) -> tuple[Optional[str], Optional[st
         match = re.search(pattern, message, re.IGNORECASE)
         if match:
             city = match.group(1).strip(" .?!,")
+            if _normalize_text(city) in {
+                "this shop",
+                "this store",
+                "the shop",
+                "the store",
+                "all other",
+                "all other products",
+                "all products",
+                "other products",
+                "order it",
+                "buy it",
+            }:
+                continue
             return city.title(), address
 
     return None, address
@@ -129,6 +289,7 @@ def _normalize_router_result(result: dict, products: list[dict]) -> Optional[dic
         "small_talk",
         "product_list",
         "product_info_question",
+        "shop_info_question",
         "availability_question",
         "order_intent",
         "price_question",
@@ -163,7 +324,17 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
     msg_lower = message.lower()
     msg_norm = _normalize_text(message)
     explicit_product = find_product(message, state["shop_data"])
+    indexed_product = _product_from_catalog_index(msg_norm, state)
     active_product = state.get("active_product")
+    is_shop_info_request = _is_shop_info_request(msg_norm)
+    is_catalog_request = _is_catalog_request(msg_norm) or _is_catalog_comparison_request(msg_norm)
+    catalog_filter = _catalog_filter_field(msg_norm, state["shop_data"])
+    if catalog_filter and not explicit_product:
+        is_catalog_request = True
+        state["catalog_filter"] = catalog_filter
+    city, address = _extract_delivery_location(message)
+    state["delivery_city"] = city
+    state["delivery_address"] = address
 
     delivery_terms = [
         "delivery",
@@ -258,8 +429,27 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         "tell me more",
         "about",
     ]
+    greeting_terms = ["hello", "hi", "salam", "slm", "hey", "bonjour", "slt", "salut"]
+    small_talk_terms = [
+        "thank you",
+        "thanks",
+        "ok",
+        "okay",
+        "bye",
+        "good",
+        "understood",
+        "merci",
+        "chokran",
+        "shokran",
+        "la",
+        "non",
+    ]
 
-    if explicit_product:
+    if indexed_product:
+        router_result["product_query"] = indexed_product
+    elif is_shop_info_request or is_catalog_request:
+        router_result["product_query"] = None
+    elif explicit_product:
         router_result["product_query"] = explicit_product["name"]
     elif router_result.get("product_query"):
         router_result["product_query"] = _resolve_product_query(
@@ -269,27 +459,28 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
 
     is_cash_on_delivery = "cash on delivery" in msg_lower
 
-    if state.get("pending_order_json") and (
-        _contains_any(
-            msg_norm,
-            [
-                "name",
-                "phone",
-                "telephone",
-                "address",
-                "adresse",
-                "city",
-                "ville",
-                "cash",
-                "card",
-                "transfer",
-                "paypal",
-                "quantity",
-                "qty",
-                "my address",
-            ],
-        )
-        or state.get("delivery_city")
+    if is_shop_info_request:
+        router_result["intent"] = "shop_info_question"
+        router_result["product_query"] = None
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
+    elif is_catalog_request:
+        router_result["intent"] = "product_list"
+        router_result["product_query"] = None
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
+    elif indexed_product:
+        router_result["intent"] = "product_info_question"
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
+    elif _contains_word(msg_norm, greeting_terms):
+        router_result["intent"] = "greeting"
+        router_result["product_query"] = None
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
+    elif _contains_word(msg_norm, small_talk_terms):
+        router_result["intent"] = "small_talk"
+        router_result["product_query"] = None
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.9)
+    elif state.get("pending_order_json") and _is_pending_order_field_reply(
+        msg_norm,
+        bool(state.get("delivery_city")),
     ):
         router_result["intent"] = "order_intent"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
@@ -312,17 +503,15 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         router_result["intent"] = "product_info_question"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.9)
 
-    if not router_result.get("product_query") and active_product:
+    if not router_result.get("product_query") and active_product and not is_shop_info_request and not is_catalog_request:
         uses_context = _contains_any(
             msg_lower,
-            [" it", "this", "that product", "same one", "this one", "how much", "price", "available", "stock", "deliver", "had", "hada", "hadi"],
+            [" it", "this", "that product", "same one", "this one", "how much", "price", "available", "stock", "deliver", "brand", "had", "hada", "hadi"],
         )
+        uses_context = uses_context or _contains_any(msg_norm, ["livraison", "katsifto", "tsifto", "sifto"])
         if uses_context:
             router_result["product_query"] = active_product
 
-    city, address = _extract_delivery_location(message)
-    state["delivery_city"] = city
-    state["delivery_address"] = address
     if city:
         state["steps"].append(f"Detected delivery city: {city}")
     if address:
@@ -426,6 +615,11 @@ def deterministic_intent_router(state: ChatState) -> dict:
     """
     msg_lower = state["message"].lower()
     msg_norm = _normalize_text(state["message"])
+    is_shop_info_request = _is_shop_info_request(msg_norm)
+    is_catalog_request = _is_catalog_request(msg_norm) or _is_catalog_comparison_request(msg_norm)
+    catalog_filter = _catalog_filter_field(msg_norm, state["shop_data"])
+    if catalog_filter and not find_product(state["message"], state["shop_data"]):
+        is_catalog_request = True
     
     # Initialize result
     result = {
@@ -437,11 +631,28 @@ def deterministic_intent_router(state: ChatState) -> dict:
     
     # Try to find a product in the message
     product = find_product(state["message"], state["shop_data"])
+    indexed_product = _product_from_catalog_index(msg_norm, state)
     if product:
         result["product_query"] = product["name"]
+    elif indexed_product:
+        result["product_query"] = indexed_product
+    
+    if is_shop_info_request:
+        result["intent"] = "shop_info_question"
+        result["product_query"] = None
+        result["confidence"] = 0.95
+    
+    elif is_catalog_request:
+        result["intent"] = "product_list"
+        result["product_query"] = None
+        result["confidence"] = 0.95
+    
+    elif indexed_product:
+        result["intent"] = "product_info_question"
+        result["confidence"] = 0.95
     
     # Delivery has priority because "how much" can mean delivery cost/time.
-    if _contains_any(msg_norm, ["delivery", "deliver", "shipping", "ship", "address", "city", "cities", "delivery cost", "delivery price", "how much time", "how long", "arrive", "livraison", "katsifto", "tsifto", "sifto"]) and "cash on delivery" not in msg_norm:
+    elif _contains_any(msg_norm, ["delivery", "deliver", "shipping", "ship", "address", "city", "cities", "delivery cost", "delivery price", "how much time", "how long", "arrive", "livraison", "katsifto", "tsifto", "sifto"]) and "cash on delivery" not in msg_norm:
         result["intent"] = "delivery_question"
         result["confidence"] = 0.95
     

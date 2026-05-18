@@ -16,6 +16,8 @@ def save_session_state_node(state: ChatState) -> ChatState:
         extracted_city=state.get("delivery_city"),
         extracted_address=state.get("delivery_address"),
         pending_order_json=state.get("pending_order_json"),
+        last_catalog_products=state.get("last_catalog_products"),
+        clear_pending_order=state.get("pending_order_json") is None,
     )
     
     if state["active_product"]:
