@@ -199,6 +199,26 @@ def _is_order_creation_signal(message: str, normalized: str) -> bool:
     )
 
 
+def _is_order_status_signal(normalized: str) -> bool:
+    """Detect customer requests to read order status."""
+    return _contains_any(
+        normalized,
+        [
+            "order status",
+            "status of my order",
+            "my order status",
+            "where is my order",
+            "track my order",
+            "tracking order",
+            "is my order confirmed",
+            "is my order shipped",
+            "is my order delivered",
+            "has my order",
+            "what happened to my order",
+        ],
+    )
+
+
 def _extract_delivery_location(message: str) -> tuple[Optional[str], Optional[str]]:
     """Extract simple city/address details from common commerce phrasing."""
     known_cities = [
@@ -333,6 +353,7 @@ def _normalize_router_result(result: dict, products: list[dict]) -> Optional[dic
         "availability_question",
         "order_intent",
         "order_creation",
+        "order_status",
         "price_question",
         "delivery_question",
         "payment_question",
@@ -524,6 +545,10 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         router_result["intent"] = "small_talk"
         router_result["product_query"] = None
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.9)
+    elif _is_order_status_signal(msg_norm):
+        router_result["intent"] = "order_status"
+        router_result["product_query"] = None
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif state.get("pending_order_json") and _is_pending_order_field_reply(
         msg_norm,
         bool(state.get("delivery_city")),
@@ -708,6 +733,11 @@ def deterministic_intent_router(state: ChatState) -> dict:
         result["intent"] = "product_info_question"
         result["confidence"] = 0.95
     
+    elif _is_order_status_signal(msg_norm):
+        result["intent"] = "order_status"
+        result["product_query"] = None
+        result["confidence"] = 0.95
+
     # Order creation field replies should not be routed as delivery questions.
     elif _is_order_creation_signal(state["message"], msg_norm):
         result["intent"] = "order_creation"
