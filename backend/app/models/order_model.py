@@ -21,7 +21,7 @@ class CustomerInfoCreate(BaseModel):
 
 
 class OrderCreate(BaseModel):
-    session_id: str | None = None
+    session_id: str = Field(min_length=1)
     items: list[OrderItemCreate] = Field(min_length=1)
     customer_info: CustomerInfoCreate
 
@@ -35,10 +35,15 @@ class PublicOrderCreate(BaseModel):
     city: str = Field(min_length=1, max_length=120)
     address: str = Field(min_length=1, max_length=300)
     payment_method: str | None = Field(default=None, max_length=80)
+    session_id: str | None = None
 
 
 class OrderUpdate(BaseModel):
     status: OrderStatus | None = None
+
+
+class OrderStatusUpdate(BaseModel):
+    status: OrderStatus
 
 
 class OrderItemDetailResponse(BaseModel):
