@@ -10,6 +10,8 @@ def save_session_state_node(state: ChatState) -> ChatState:
         state["session_id"],
         shop_id=state.get("shop_id"),
         active_product=state["active_product"],
+        active_product_id=state.get("active_product_id"),
+        active_product_name=state.get("active_product_name"),
         current_product_id=state.get("current_product_id"),
         current_product_name=state.get("current_product_name"),
         last_intent=state["intent"],

@@ -183,6 +183,22 @@ def _is_pending_order_field_reply(text: str, has_city: bool) -> bool:
     )
 
 
+def _is_order_creation_signal(message: str, normalized: str) -> bool:
+    """Detect messages that should go directly to order creation."""
+    if re.search(r"\b(?:name|phone|city|delivery\s+address|address)\s*:", message, re.IGNORECASE):
+        return True
+    return _contains_any(
+        normalized,
+        [
+            "i want to order",
+            "i want to buy",
+            "place order",
+            "confirm order",
+            "checkout",
+        ],
+    )
+
+
 def _extract_delivery_location(message: str) -> tuple[Optional[str], Optional[str]]:
     """Extract simple city/address details from common commerce phrasing."""
     known_cities = [
@@ -316,6 +332,7 @@ def _normalize_router_result(result: dict, products: list[dict]) -> Optional[dic
         "shop_info_question",
         "availability_question",
         "order_intent",
+        "order_creation",
         "price_question",
         "delivery_question",
         "payment_question",
@@ -426,6 +443,11 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         "mawjoude",
     ]
     order_terms = [
+        "i want to order",
+        "i want to buy",
+        "place order",
+        "confirm order",
+        "checkout",
         "buy",
         "order",
         "purchase",
@@ -506,7 +528,10 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         msg_norm,
         bool(state.get("delivery_city")),
     ):
-        router_result["intent"] = "order_intent"
+        router_result["intent"] = "order_creation"
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
+    elif _is_order_creation_signal(message, msg_norm):
+        router_result["intent"] = "order_creation"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif _contains_any(msg_norm, delivery_terms) and not is_cash_on_delivery:
         router_result["intent"] = "delivery_question"
@@ -521,7 +546,7 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         router_result["intent"] = "availability_question"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif _contains_any(msg_norm, order_terms):
-        router_result["intent"] = "order_intent"
+        router_result["intent"] = "order_creation"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif explicit_product and _contains_any(msg_norm, info_terms):
         router_result["intent"] = "product_info_question"
@@ -683,6 +708,15 @@ def deterministic_intent_router(state: ChatState) -> dict:
         result["intent"] = "product_info_question"
         result["confidence"] = 0.95
     
+    # Order creation field replies should not be routed as delivery questions.
+    elif _is_order_creation_signal(state["message"], msg_norm):
+        result["intent"] = "order_creation"
+        if product:
+            result["product_query"] = product["name"]
+        elif state.get("active_product"):
+            result["product_query"] = state["active_product"]
+        result["confidence"] = 0.95
+
     # Delivery has priority because "how much" can mean delivery cost/time.
     elif _contains_any(msg_norm, ["delivery", "deliver", "shipping", "ship", "address", "city", "cities", "delivery cost", "delivery price", "how much time", "how long", "arrive", "livraison", "katsifto", "tsifto", "sifto"]) and "cash on delivery" not in msg_norm:
         result["intent"] = "delivery_question"
@@ -713,8 +747,8 @@ def deterministic_intent_router(state: ChatState) -> dict:
         result["confidence"] = 0.95
     
     # Order intent
-    elif _contains_any(msg_norm, ["buy", "order", "purchase", "reserve", "confirm", "i want it", "take it", "send it to me", "can i buy", "bghit", "ncommandi", "commander", "commande", "acheter"]):
-        result["intent"] = "order_intent"
+    elif _contains_any(msg_norm, ["i want to order", "i want to buy", "place order", "confirm order", "checkout", "buy", "order", "purchase", "reserve", "confirm", "i want it", "take it", "send it to me", "can i buy", "bghit", "ncommandi", "commander", "commande", "acheter"]):
+        result["intent"] = "order_creation"
         if product:
             result["product_query"] = product["name"]
         elif state.get("active_product"):

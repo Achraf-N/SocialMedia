@@ -56,6 +56,8 @@ def make_state(message: str, active_product: str | None = None) -> ChatState:
         "intent": None,
         "product_query": None,
         "active_product": active_product,
+        "active_product_id": None,
+        "active_product_name": active_product,
         "current_product_id": None,
         "current_product": active_product,
         "current_product_name": active_product,
@@ -116,8 +118,9 @@ print("Brand/catalog routing tests passed")
 
 print("\nOrder field extraction tests")
 
-order_state = make_state("Achraf 0612345678 12 Rue X, Casablanca", "Hair Oil")
+order_state = make_state("Achraf 0612345678 12 Rue X", "Hair Oil")
 order_state["pending_order_json"] = {"product_id": "hair-oil-id", "quantity": 1}
+order_state["active_product_id"] = "hair-oil-id"
 order_state["shop_data"] = [
     {
         **SHOP_PRODUCTS[1],
@@ -125,12 +128,12 @@ order_state["shop_data"] = [
     }
 ]
 order_state = intent_router(order_state)
-assert order_state["intent"] == "order_intent", order_state
+assert order_state["intent"] == "order_creation", order_state
 order_state["delivery_city"] = None
 order_state = order_agent(order_state)
-assert order_state["pending_order_json"]["customer_name"] == "Achraf", order_state
-assert order_state["pending_order_json"]["customer_phone"] == "0612345678", order_state
-assert "12 Rue X" in order_state["pending_order_json"]["address"], order_state
+assert order_state["pending_order_json"]["customer_info"]["name"] == "Achraf", order_state
+assert order_state["pending_order_json"]["customer_info"]["phone"] == "0612345678", order_state
+assert "12 Rue X" in order_state["pending_order_json"]["customer_info"]["delivery_address"], order_state
 
 pending_switch = make_state("how much is Hair Oil?", "Hair Oil")
 pending_switch["pending_order_json"] = {"product_id": "hair-oil-id", "quantity": 1}

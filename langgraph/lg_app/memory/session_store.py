@@ -53,6 +53,8 @@ def get_session_state(session_id: str, shop_id: Optional[str] = None) -> dict:
     """
     default_state = {
         "active_product": None,
+        "active_product_id": None,
+        "active_product_name": None,
         "current_product_id": None,
         "current_product_name": None,
         "last_intent": None,
@@ -82,6 +84,8 @@ def save_session_state(
     session_id: str,
     shop_id: Optional[str] = None,
     active_product: Optional[str] = None,
+    active_product_id: Optional[str] = None,
+    active_product_name: Optional[str] = None,
     current_product_id: Optional[str] = None,
     current_product_name: Optional[str] = None,
     last_intent: Optional[str] = None,
@@ -105,11 +109,15 @@ def save_session_state(
         "shop_id": shop_id,
         "updated_at": _now(),
     }
+    resolved_product_id = active_product_id or current_product_id
+    resolved_product_name = active_product_name or current_product_name or active_product
 
     field_updates = {
         "active_product": active_product,
-        "current_product_id": current_product_id,
-        "current_product_name": current_product_name,
+        "active_product_id": resolved_product_id,
+        "active_product_name": resolved_product_name,
+        "current_product_id": resolved_product_id,
+        "current_product_name": resolved_product_name,
         "last_intent": last_intent,
         "extracted_city": extracted_city,
         "extracted_address": extracted_address,

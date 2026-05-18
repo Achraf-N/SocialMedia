@@ -29,7 +29,7 @@ Possible routes:
 - product_list
 - product_info_question
 - availability_question
-- order_intent
+- order_creation
 - price_question
 - delivery_question
 - payment_question
@@ -52,7 +52,7 @@ Rules:
 - cheapest, lowest price, most expensive, compare products -> product_list
 - one product, details, info, available, usage, benefits, ingredients -> product_info_question
 - is it available, in stock, stock for one product -> availability_question
-- buy, order, reserve, confirm purchase -> order_intent
+- buy, order, reserve, confirm purchase -> order_creation
 - price, cost, discount, how much -> price_question
 - delivery, shipping, delivery cost, address, city, arrive, how long, how much time -> delivery_question
 - payment, pay, cash, card, bank transfer -> payment_question
@@ -60,7 +60,7 @@ Rules:
 - thanks, ok, okay, cool, nice, bye, merci, chokran, shokran -> small_talk
 - ch7al, chhal, taman, tamane, prix, combien -> price_question
 - kayn, kayna, disponible, mawjod -> availability_question
-- bghit ncommandi, commander, commande, acheter -> order_intent
+- bghit ncommandi, commander, commande, acheter -> order_creation
 - livraison, katsifto, tsifto, sifto -> delivery_question
 - angry, problem, refund, support, late, bad -> complaint and needs_human=true
 - unclear -> unknown
