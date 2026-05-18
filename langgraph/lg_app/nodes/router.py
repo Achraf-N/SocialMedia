@@ -125,13 +125,29 @@ def _product_from_catalog_index(text: str, state: ChatState) -> Optional[str]:
 
     ordinal_map = {
         "first product": 0,
+        "first one": 0,
+        "the first": 0,
+        "the first one": 0,
         "second product": 1,
+        "second one": 1,
+        "the second": 1,
+        "the second one": 1,
         "third product": 2,
+        "third one": 2,
+        "the third": 2,
+        "the third one": 2,
         "fourth product": 3,
+        "fourth one": 3,
+        "the fourth": 3,
+        "the fourth one": 3,
         "1st product": 0,
+        "1st one": 0,
         "2nd product": 1,
+        "2nd one": 1,
         "3rd product": 2,
+        "3rd one": 2,
         "4th product": 3,
+        "4th one": 3,
     }
     for phrase, index in ordinal_map.items():
         if phrase in text and 0 <= index < len(catalog):
