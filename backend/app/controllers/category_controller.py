@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.errors import DuplicateKeyError
 
 from app.core.database import categories_collection
-from app.core.dependencies import get_current_owner, get_owned_shop
+from app.core.dependencies import get_current_owner, get_owned_shop, get_shop_by_id
 from app.models.category_model import CategoryCreate, CategoryResponse, CategoryUpdate
 from app.models.common import now_utc
 from app.views.serializers import serialize_document, serialize_documents
@@ -39,31 +39,24 @@ def create_category(
 
 
 @router.get("", response_model=list[CategoryResponse])
-def list_categories(
-    shop_id: str,
-    owner: dict = Depends(get_current_owner),
-) -> list[dict]:
-    shop = get_owned_shop(shop_id, owner)
+def list_categories(shop_id: str) -> list[dict]:
+    """List categories for a shop (public)."""
+    shop = get_shop_by_id(shop_id)
     categories = list(
-        categories_collection.find({"owner_id": owner["_id"], "shop_id": shop["_id"]}).sort(
-            "name", 1
-        )
+        categories_collection.find({"shop_id": shop["_id"]}).sort("name", 1)
     )
     return serialize_documents(categories)
 
 
 @router.get("/{category_id}", response_model=CategoryResponse)
-def get_category(
-    shop_id: str,
-    category_id: str,
-    owner: dict = Depends(get_current_owner),
-) -> dict:
-    shop = get_owned_shop(shop_id, owner)
+def get_category(shop_id: str, category_id: str) -> dict:
+    """Get a category by id (public)."""
+    shop = get_shop_by_id(shop_id)
     if not ObjectId.is_valid(category_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid object id")
 
     category = categories_collection.find_one(
-        {"_id": ObjectId(category_id), "owner_id": owner["_id"], "shop_id": shop["_id"]}
+        {"_id": ObjectId(category_id), "shop_id": shop["_id"]}
     )
     if not category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")

@@ -39,6 +39,17 @@ def get_current_shop(owner: dict[str, Any] = Depends(get_current_owner)) -> dict
     return shop
 
 
+def get_shop_by_id(shop_id: str) -> dict[str, Any]:
+    if not ObjectId.is_valid(shop_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid object id")
+
+    shop = shops_collection.find_one({"_id": ObjectId(shop_id)})
+    if not shop:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shop not found")
+
+    return shop
+
+
 def get_owned_shop(shop_id: str, owner: dict[str, Any]) -> dict[str, Any]:
     if not ObjectId.is_valid(shop_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid object id")
