@@ -226,6 +226,8 @@ def _extract_delivery_location(message: str) -> tuple[Optional[str], Optional[st
                 "other products",
             }:
                 continue
+            if _normalize_text(candidate).startswith(("order ", "buy ", "purchase ", "reserve ")):
+                continue
             if any(char.isdigit() for char in candidate) or "," in candidate:
                 address = candidate
             break
@@ -251,9 +253,15 @@ def _extract_delivery_location(message: str) -> tuple[Optional[str], Optional[st
                 "all other products",
                 "all products",
                 "other products",
+                "delivery",
+                "order",
+                "order the",
+                "buy it",
                 "order it",
                 "buy it",
             }:
+                continue
+            if _normalize_text(city).startswith(("order ", "buy ", "purchase ", "reserve ")):
                 continue
             return city.title(), address
 
