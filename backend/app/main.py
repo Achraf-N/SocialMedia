@@ -10,6 +10,7 @@ from app.controllers import (
     product_controller,
     shop_controller,
 )
+from app.controllers.order_controller import orders_router
 from app.core.config import settings
 from app.core.database import create_indexes
 
@@ -185,3 +186,4 @@ app.include_router(shop_controller.router, prefix="/api")
 app.include_router(product_controller.router, prefix="/api")
 app.include_router(category_controller.router, prefix="/api")
 app.include_router(order_controller.router, prefix="/api")
+app.include_router(orders_router, prefix="/api")
