@@ -1,23 +1,33 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import BaseModel, Field
 
 from app.models.shop_model import ShopPublicResponse
 
+OrderStatus = Literal["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"]
+
+
+class OrderItemCreate(BaseModel):
+    product_id: str = Field(min_length=1)
+    quantity: int = Field(ge=1)
+
+
+class CustomerInfoCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    phone: str = Field(min_length=1, max_length=40)
+    city: str = Field(min_length=1, max_length=120)
+    delivery_address: str = Field(min_length=1, max_length=300)
+
 
 class OrderCreate(BaseModel):
-    customer_name: str = Field(min_length=1, max_length=160)
-    delivery_address: str = Field(min_length=1, max_length=300)
-    phone_number: str = Field(min_length=1, max_length=40)
-    quantity: int = Field(
-        ge=1,
-        validation_alias=AliasChoices("quantity", "qunatity"),
-    )
-    product_id: str = Field(min_length=1)
-    delivered: bool = False
+    session_id: str | None = None
+    items: list[OrderItemCreate] = Field(min_length=1)
+    customer_info: CustomerInfoCreate
 
 
 class PublicOrderCreate(BaseModel):
+    """Single-product flat format used by the LangGraph chatbot."""
     product_id: str = Field(min_length=1)
     quantity: int = Field(default=1, ge=1)
     customer_name: str = Field(min_length=1, max_length=160)
@@ -28,26 +38,33 @@ class PublicOrderCreate(BaseModel):
 
 
 class OrderUpdate(BaseModel):
-    customer_name: str | None = Field(default=None, min_length=1, max_length=160)
-    delivery_address: str | None = Field(default=None, min_length=1, max_length=300)
-    phone_number: str | None = Field(default=None, min_length=1, max_length=40)
-    quantity: int | None = Field(
-        default=None,
-        ge=1,
-        validation_alias=AliasChoices("quantity", "qunatity"),
-    )
-    product_id: str | None = Field(default=None, min_length=1)
-    delivered: bool | None = None
+    status: OrderStatus | None = None
+
+
+class OrderItemDetailResponse(BaseModel):
+    product_id: str
+    product_name: str | None = None
+    quantity: int
+    unit_price: float
+    total_price: float
+
+
+class CustomerInfoResponse(BaseModel):
+    name: str
+    phone: str
+    city: str
+    delivery_address: str
 
 
 class OrderResponse(BaseModel):
     id: str
-    customer_name: str
-    delivery_address: str
-    phone_number: str
-    quantity: int
-    product_id: str
-    delivered: bool
+    session_id: str | None = None
+    shop_id: str
+    shop_name: str | None = None
+    items: list[OrderItemDetailResponse]
+    total_price: float
+    status: str
+    customer_info: CustomerInfoResponse
     created_at: datetime
     updated_at: datetime
 
