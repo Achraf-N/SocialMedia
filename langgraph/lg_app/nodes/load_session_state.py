@@ -14,6 +14,7 @@ def load_session_state(state: ChatState) -> ChatState:
     state["delivery_city"] = session.get("extracted_city")
     state["delivery_address"] = session.get("extracted_address")
     state["pending_order_json"] = session.get("pending_order_json")
+    state["last_catalog_products"] = session.get("last_catalog_products")
     
     if state["active_product"]:
         state["steps"].append(f"Loaded active product from session: {state['active_product']}")

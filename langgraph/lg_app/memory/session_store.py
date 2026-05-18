@@ -59,6 +59,7 @@ def get_session_state(session_id: str, shop_id: Optional[str] = None) -> dict:
         "extracted_city": None,
         "extracted_address": None,
         "pending_order_json": None,
+        "last_catalog_products": None,
     }
 
     collection = _get_collection()
@@ -87,6 +88,8 @@ def save_session_state(
     extracted_city: Optional[str] = None,
     extracted_address: Optional[str] = None,
     pending_order_json: Optional[dict] = None,
+    last_catalog_products: Optional[list[str]] = None,
+    clear_pending_order: bool = False,
 ) -> None:
     """
     Save session state.
@@ -103,17 +106,25 @@ def save_session_state(
         "updated_at": _now(),
     }
 
-    for key, value in {
+    field_updates = {
         "active_product": active_product,
         "current_product_id": current_product_id,
         "current_product_name": current_product_name,
         "last_intent": last_intent,
         "extracted_city": extracted_city,
         "extracted_address": extracted_address,
-        "pending_order_json": pending_order_json,
-    }.items():
+        "last_catalog_products": last_catalog_products,
+    }
+    if clear_pending_order:
+        field_updates["pending_order_json"] = None
+    elif pending_order_json is not None:
+        field_updates["pending_order_json"] = pending_order_json
+
+    for key, value in field_updates.items():
         if value is not None:
             updates[key] = value
+        elif key == "pending_order_json" and clear_pending_order:
+            updates[key] = None
 
     merged = {**existing, **updates}
     sessions[session_id] = merged

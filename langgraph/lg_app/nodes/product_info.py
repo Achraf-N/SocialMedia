@@ -26,6 +26,16 @@ def product_info_agent(state: ChatState) -> ChatState:
         state["response"] = "Could you tell me which product you mean?"
         state["steps"].append("Generated product info response")
         return state
+
+    message = state["message"].lower()
+    if "brand" in message:
+        brand = product.get("brand")
+        if brand:
+            state["response"] = f"{product['name']} is from {brand}."
+        else:
+            state["response"] = f"The brand for {product['name']} is not available yet."
+        state["steps"].append("Generated product brand response")
+        return state
     
     # Generate response using Ollama LLM
     try:

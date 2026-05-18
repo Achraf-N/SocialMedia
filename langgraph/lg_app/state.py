@@ -19,6 +19,8 @@ class ChatState(TypedDict):
     delivery_address: Optional[str]
     pending_order_json: Optional[dict]
     shop_info: Optional[dict]
+    catalog_filter: Optional[str]
+    last_catalog_products: Optional[list[str]]
     response: Optional[str]
     steps: list[str]
     shop_data: list[dict]

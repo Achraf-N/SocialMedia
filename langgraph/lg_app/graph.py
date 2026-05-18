@@ -8,6 +8,7 @@ from lg_app.nodes.load_session_state import load_session_state
 from lg_app.nodes.router import intent_router
 from lg_app.nodes.state_manager import update_active_product
 from lg_app.nodes.product_list import product_list_agent
+from lg_app.nodes.shop_info import shop_info_agent
 from lg_app.nodes.product_info import product_info_agent
 from lg_app.nodes.price import price_agent
 from lg_app.nodes.delivery import delivery_agent
@@ -24,6 +25,7 @@ def route_by_intent(state: ChatState) -> str:
     """Route to appropriate agent based on detected intent."""
     intent_to_node = {
         "product_list": "product_list_agent",
+        "shop_info_question": "shop_info_agent",
         "product_info_question": "product_info_agent",
         "availability_question": "product_info_agent",
         "order_intent": "order_agent",
@@ -51,6 +53,7 @@ def get_graph():
     graph.add_node("update_active_product", update_active_product)
     
     graph.add_node("product_list_agent", product_list_agent)
+    graph.add_node("shop_info_agent", shop_info_agent)
     graph.add_node("product_info_agent", product_info_agent)
     graph.add_node("price_agent", price_agent)
     graph.add_node("delivery_agent", delivery_agent)
@@ -77,6 +80,7 @@ def get_graph():
         route_by_intent,
         {
             "product_list_agent": "product_list_agent",
+            "shop_info_agent": "shop_info_agent",
             "product_info_agent": "product_info_agent",
             "price_agent": "price_agent",
             "delivery_agent": "delivery_agent",
@@ -91,7 +95,7 @@ def get_graph():
     
     # All agent nodes lead to save state
     agent_nodes = [
-        "product_list_agent", "product_info_agent", "price_agent",
+        "product_list_agent", "shop_info_agent", "product_info_agent", "price_agent",
         "delivery_agent", "payment_agent", "order_agent", "greeting_agent",
         "small_talk_agent", "unknown_agent", "human_needed_agent"
     ]

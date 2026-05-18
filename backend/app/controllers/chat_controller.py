@@ -100,6 +100,7 @@ def chat_endpoint(request: ChatRequest) -> ChatResponse:
             pending_order_json=None,
             shop_info=None,
             catalog_filter=None,
+            last_catalog_products=None,
             response=None,
             steps=[],
             shop_data=[],

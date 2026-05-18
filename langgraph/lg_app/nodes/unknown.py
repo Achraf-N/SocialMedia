@@ -7,6 +7,12 @@ from lg_app.llm.prompts import SYSTEM_PROMPTS, PROMPT_TEMPLATES
 
 def unknown_agent(state: ChatState) -> ChatState:
     """Handle unknown intent using Ollama LLM."""
+    if state.get("active_product"):
+        state["response"] = (
+            f"Do you want the price, availability, delivery, payment, or order help for {state['active_product']}?"
+        )
+        state["steps"].append("Generated contextual unknown response")
+        return state
     
     # Generate response using Ollama LLM
     try:
@@ -25,7 +31,7 @@ def unknown_agent(state: ChatState) -> ChatState:
     
     except Exception as e:
         # Fallback to deterministic response if LLM fails
-        response = "I didn't fully understand your request. Could you tell me which product or information you need?"
+        response = "Sure. Are you asking about products, price, delivery, payment, or placing an order?"
     
     state["response"] = response
     state["steps"].append("Generated unknown response")
