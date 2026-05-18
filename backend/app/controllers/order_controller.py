@@ -259,14 +259,23 @@ def update_order_status(
     if not ObjectId.is_valid(order_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid object id")
 
-    result = orders_collection.update_one(
-        {"_id": ObjectId(order_id), "shop_id": shop["_id"]},
-        {"$set": {"status": body.status, "updated_at": now_utc()}},
-    )
-    if result.matched_count == 0:
+    order = orders_collection.find_one({"_id": ObjectId(order_id), "shop_id": shop["_id"]})
+    if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
-    updated = orders_collection.find_one({"_id": ObjectId(order_id)})
+    orders_collection.update_one(
+        {"_id": order["_id"]},
+        {"$set": {"status": body.status, "updated_at": now_utc()}},
+    )
+
+    if body.status == "confirmed" and order.get("status") != "confirmed":
+        for item in order.get("items", []):
+            products_collection.update_one(
+                {"_id": item["product_id"]},
+                {"$inc": {"stock": -item["quantity"]}},
+            )
+
+    updated = orders_collection.find_one({"_id": order["_id"]})
     products_map = _fetch_products_map([updated])
     return _serialize_order(updated, products_map, shop.get("name", ""))
 
