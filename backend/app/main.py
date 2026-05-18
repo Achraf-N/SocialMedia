@@ -137,6 +137,7 @@ def chat(request: ChatRequest) -> ChatResponse:
             delivery_address=None,
             pending_order_json=None,
             shop_info=None,
+            catalog_filter=None,
             response=None,
             steps=[],
             shop_data=[],
