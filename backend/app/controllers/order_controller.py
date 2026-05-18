@@ -9,12 +9,14 @@ from app.models.order_model import (
     OrderDetailWithShopResponse,
     OrderListWithShopResponse,
     OrderResponse,
+    OrderStatusUpdate,
     OrderUpdate,
     PublicOrderCreate,
 )
 from app.views.serializers import serialize_document
 
 router = APIRouter(prefix="/shops/{shop_id}/orders", tags=["orders"])
+orders_router = APIRouter(prefix="/orders", tags=["orders"])
 
 
 def _get_owned_product(product_id: str, owner: dict, shop: dict) -> dict:
@@ -96,7 +98,7 @@ def create_public_order(shop_id: str, order_in: PublicOrderCreate) -> dict:
     total_price = unit_price * order_in.quantity
     now = now_utc()
     order = {
-        "session_id": None,
+        "session_id": order_in.session_id,
         "shop_id": shop["_id"],
         "items": [
             {
@@ -154,7 +156,7 @@ def create_order(
 
     now = now_utc()
     order = {
-        "session_id": ObjectId(order_in.session_id) if order_in.session_id and ObjectId.is_valid(order_in.session_id) else None,
+        "session_id": order_in.session_id,
         "shop_id": shop["_id"],
         "items": items_to_insert,
         "total_price": total_price,
@@ -177,6 +179,22 @@ def list_orders(
     shop = get_owned_shop(shop_id, owner)
     orders = list(
         orders_collection.find({"shop_id": shop["_id"]}).sort("created_at", -1)
+    )
+    products_map = _fetch_products_map(orders)
+    shop_name = shop.get("name", "")
+    enriched = [_serialize_order(o, products_map, shop_name) for o in orders]
+    return {"shop": serialize_document(shop), "orders": enriched}
+
+
+@router.get("/session/{session_id}", response_model=OrderListWithShopResponse)
+def list_orders_by_session(
+    shop_id: str,
+    session_id: str,
+    owner: dict = Depends(get_current_owner),
+) -> dict:
+    shop = get_owned_shop(shop_id, owner)
+    orders = list(
+        orders_collection.find({"shop_id": shop["_id"], "session_id": session_id}).sort("created_at", -1)
     )
     products_map = _fetch_products_map(orders)
     shop_name = shop.get("name", "")
@@ -230,6 +248,29 @@ def update_order(
     return _serialize_order(updated, products_map, shop.get("name", ""))
 
 
+@router.patch("/{order_id}/status", response_model=OrderResponse)
+def update_order_status(
+    shop_id: str,
+    order_id: str,
+    body: OrderStatusUpdate,
+    owner: dict = Depends(get_current_owner),
+) -> dict:
+    shop = get_owned_shop(shop_id, owner)
+    if not ObjectId.is_valid(order_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid object id")
+
+    result = orders_collection.update_one(
+        {"_id": ObjectId(order_id), "shop_id": shop["_id"]},
+        {"$set": {"status": body.status, "updated_at": now_utc()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    updated = orders_collection.find_one({"_id": ObjectId(order_id)})
+    products_map = _fetch_products_map([updated])
+    return _serialize_order(updated, products_map, shop.get("name", ""))
+
+
 @router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_order(
     shop_id: str,
@@ -243,3 +284,21 @@ def delete_order(
     result = orders_collection.delete_one({"_id": ObjectId(order_id), "shop_id": shop["_id"]})
     if result.deleted_count == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+
+@orders_router.get("/session/{session_id}", response_model=list[OrderResponse])
+def get_orders_by_session(session_id: str) -> list:
+    orders = list(
+        orders_collection.find({"session_id": session_id}).sort("created_at", -1)
+    )
+    if not orders:
+        return []
+
+    shop_ids = list({o["shop_id"] for o in orders})
+    shops_map = {s["_id"]: s for s in shops_collection.find({"_id": {"$in": shop_ids}})}
+    products_map = _fetch_products_map(orders)
+
+    return [
+        _serialize_order(o, products_map, shops_map.get(o["shop_id"], {}).get("name", ""))
+        for o in orders
+    ]
