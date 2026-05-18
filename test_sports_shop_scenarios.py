@@ -128,10 +128,38 @@ if __name__ == "__main__":
     assert delivery["delivery_city"] == "Rabat", delivery
     assert_contains(delivery["response"], "Rabat")
 
+    delivery_time = chat("sports-delivery-time", "How much time for delivery?")
+    assert delivery_time["intent"] == "delivery_question", delivery_time
+    assert delivery_time["delivery_city"] is None, delivery_time
+    assert_contains(delivery_time["response"], "Delivery")
+
     order_start = chat("sports-order", "I want to order Adidas Essentials Hoodie")
     assert order_start["intent"] == "order_intent", order_start
     assert order_start["current_product"] == "Adidas Essentials Hoodie", order_start
     assert_contains(order_start["response"], "I just need")
+
+    explicit_order = chat("sports-explicit-order", "I want to order the Nike Air Max 270")
+    assert explicit_order["intent"] == "order_intent", explicit_order
+    assert explicit_order["current_product"] == "Nike Air Max 270", explicit_order
+    assert explicit_order["delivery_city"] is None, explicit_order
+    assert_contains(explicit_order["response"], "delivery address")
+
+    ngrok_safe_session = "sports-ngrok-safe-order"
+    chat_sessions_collection.delete_many({"session_id": ngrok_safe_session, "shop_id": SHOP_ID})
+    ngrok_safe_start = chat(ngrok_safe_session, "I want to order Nike Air Max 270")
+    assert ngrok_safe_start["intent"] == "order_intent", ngrok_safe_start
+    assert ngrok_safe_start["delivery_city"] is None, ngrok_safe_start
+    assert_contains(ngrok_safe_start["response"], "delivery address")
+    ngrok_safe_order = chat(
+        ngrok_safe_session,
+        "name : achraf, phone number: 0660606060, delivery address: Fes",
+    )
+    assert ngrok_safe_order["intent"] == "order_intent", ngrok_safe_order
+    assert ngrok_safe_order["current_product"] == "Nike Air Max 270", ngrok_safe_order
+    assert ngrok_safe_order["delivery_city"] == "Fes", ngrok_safe_order
+    assert_contains(ngrok_safe_order["response"], "Your order is created", "Total: 1299 MAD")
+    assert "<!DOCTYPE html>" not in ngrok_safe_order["response"], ngrok_safe_order
+    assert "ngrok" not in ngrok_safe_order["response"].lower(), ngrok_safe_order
 
     # Changing topic while an order is pending should not stay stuck in order mode.
     switch_topic = chat("sports-order", "how much is Nike Air Max 270?")

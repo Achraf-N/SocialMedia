@@ -7,6 +7,19 @@ import requests
 
 from lg_app.state import ChatState
 
+try:
+    from bson import ObjectId
+    from app.core.database import orders_collection, products_collection, shops_collection
+    from app.models.common import now_utc
+    from app.views.serializers import serialize_document
+except Exception:
+    ObjectId = None
+    orders_collection = None
+    products_collection = None
+    shops_collection = None
+    now_utc = None
+    serialize_document = None
+
 
 BACKEND_BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
@@ -28,7 +41,7 @@ def _extract_order_fields(message: str) -> dict:
     if explicit_address:
         fields["address"] = explicit_address.group(1).strip(" .?!")
 
-    explicit_phone = re.search(r"\b(?:phone|tel|telephone)\s*:\s*([+\d][\d\s.-]*)", message, re.IGNORECASE)
+    explicit_phone = re.search(r"\b(?:phone|phone number|tel|telephone)\s*:\s*([+\d][\d\s.-]*)", message, re.IGNORECASE)
     if explicit_phone:
         phone = re.sub(r"\s+", " ", explicit_phone.group(1)).strip(" .,-")
         if len(re.sub(r"\D", "", phone)) >= 8:
@@ -107,6 +120,93 @@ def _missing_message(missing: list[str], product_name: str) -> str:
     return f"Great, I can help you order {product_name}. I just need {wanted} to continue."
 
 
+def _delivery_summary(shop: dict, city: str) -> str:
+    delivery = shop.get("delivery")
+    if delivery:
+        return f"Delivery to {city}: {delivery}"
+    return "Delivery information is not available yet."
+
+
+def _create_order_direct(state: ChatState, order: dict) -> dict | None:
+    """Create the order directly when LangGraph is running inside the backend."""
+    if (
+        ObjectId is None
+        or orders_collection is None
+        or products_collection is None
+        or shops_collection is None
+        or now_utc is None
+        or serialize_document is None
+    ):
+        return None
+
+    shop_id = state.get("shop_id")
+    product_id = order.get("product_id")
+    if not ObjectId.is_valid(str(shop_id)) or not ObjectId.is_valid(str(product_id)):
+        return None
+
+    shop = shops_collection.find_one({"_id": ObjectId(str(shop_id))})
+    if not shop:
+        raise ValueError("Shop not found")
+
+    product = products_collection.find_one(
+        {"_id": ObjectId(str(product_id)), "shop_id": shop["_id"]}
+    )
+    if not product:
+        raise ValueError("Product not found")
+
+    quantity = int(order.get("quantity") or 1)
+    if product.get("available") is not True or product.get("stock", 0) < quantity:
+        raise ValueError("Product is not available")
+
+    now = now_utc()
+    document = {
+        "customer_name": order["customer_name"],
+        "delivery_address": order["address"],
+        "city": order["city"],
+        "phone_number": order["customer_phone"],
+        "payment_method": order.get("payment_method"),
+        "quantity": quantity,
+        "product_id": product["_id"],
+        "owner_id": shop.get("owner_id"),
+        "shop_id": shop["_id"],
+        "status": "pending",
+        "delivered": False,
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = orders_collection.insert_one(document)
+    return {
+        "order_id": str(result.inserted_id),
+        "status": "pending",
+        "product": serialize_document(product),
+        "quantity": quantity,
+        "total_price": product.get("price", 0) * quantity,
+        "delivery": _delivery_summary(shop, order["city"]),
+    }
+
+
+def _clean_order_error(response: requests.Response | None, exc: Exception) -> str:
+    """Return a customer-safe order error without exposing HTML/proxy pages."""
+    if response is None:
+        return "The order service is not reachable right now."
+
+    content_type = response.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            detail = response.json().get("detail")
+            if detail:
+                return str(detail)
+        except ValueError:
+            pass
+
+    text = response.text.strip()
+    if "<html" in text.lower() or "ngrok" in text.lower():
+        return "The order service is offline right now."
+    if text:
+        return text[:240]
+    return str(exc)
+
+
 def order_agent(state: ChatState) -> ChatState:
     """Collect order details and create an order only when required fields exist."""
     if re.search(r"\b(cancel|stop|nevermind|never mind|forget it|annuler)\b", state["message"], re.IGNORECASE):
@@ -144,13 +244,16 @@ def order_agent(state: ChatState) -> ChatState:
         return state
 
     try:
-        response = requests.post(
-            f"{BACKEND_BASE_URL}/api/shops/{state['shop_id']}/orders/public",
-            json=order,
-            timeout=8,
-        )
-        response.raise_for_status()
-        created = response.json()
+        created = _create_order_direct(state, order)
+        if created is None:
+            response = requests.post(
+                f"{BACKEND_BASE_URL}/api/shops/{state['shop_id']}/orders/public",
+                json=order,
+                timeout=8,
+            )
+            response.raise_for_status()
+            created = response.json()
+
         state["pending_order_json"] = None
         state["response"] = (
             f"Your order is created. Order ID: {created['order_id']}. "
@@ -158,11 +261,14 @@ def order_agent(state: ChatState) -> ChatState:
         )
         state["steps"].append(f"Created order: {created['order_id']}")
     except requests.HTTPError as exc:
-        detail = response.text if "response" in locals() else str(exc)
+        detail = _clean_order_error(response if "response" in locals() else None, exc)
         state["response"] = f"I could not create the order: {detail}"
         state["steps"].append("Order creation failed")
+    except ValueError as exc:
+        state["response"] = f"I could not create the order: {exc}"
+        state["steps"].append("Order creation failed")
     except Exception as exc:
-        state["response"] = f"I have the order details, but I could not reach the order service: {exc}"
+        state["response"] = "I have the order details, but I could not reach the order service right now."
         state["steps"].append("Order service unavailable")
 
     return state
