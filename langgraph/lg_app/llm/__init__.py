@@ -7,7 +7,7 @@ from typing import Optional
 class OllamaLLM:
     """Interface to Ollama local LLM."""
     
-    def __init__(self, model: str = "qwen3:8b", base_url: str = "http://localhost:11434"):
+    def __init__(self, model: str = "gemma4:31b-cloud", base_url: str = "http://localhost:11434"):
         """
         Initialize Ollama LLM client.
         
