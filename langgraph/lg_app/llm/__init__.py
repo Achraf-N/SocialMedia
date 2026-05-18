@@ -7,12 +7,12 @@ from typing import Optional
 class OllamaLLM:
     """Interface to Ollama local LLM."""
     
-    def __init__(self, model: str = "qwen3:8b", base_url: str = "http://localhost:11434"):
+    def __init__(self, model: str = "gemma4:31b-cloud", base_url: str = "http://localhost:11434"):
         """
         Initialize Ollama LLM client.
         
         Args:
-            model: Model name (default: qwen3:8b)
+            model: Model name (default: gemma4:31b-cloud)
             base_url: Ollama API base URL (default: http://localhost:11434)
         """
         self.model = model
@@ -73,7 +73,7 @@ class OllamaLLM:
 _llm_instance: Optional[OllamaLLM] = None
 
 
-def get_llm(model: str = "qwen3:8b") -> OllamaLLM:
+def get_llm(model: str = "gemma4:31b-cloud") -> OllamaLLM:
     """Get or create Ollama LLM instance."""
     global _llm_instance
     if _llm_instance is None:

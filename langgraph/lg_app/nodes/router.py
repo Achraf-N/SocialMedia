@@ -6,7 +6,7 @@ import unicodedata
 from typing import Optional
 from lg_app.state import ChatState
 from lg_app.utils.product_matcher import find_product
-from lg_app.llm.prompts import SYSTEM_PROMPTS, PROMPT_TEMPLATES
+from lg_app.prompts.router_prompt import ROUTER_SYSTEM_PROMPT, ROUTER_USER_PROMPT_TEMPLATE
 
 
 def _contains_word(text: str, words: list[str]) -> bool:
@@ -547,7 +547,9 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
 def build_router_prompt(
     message: str,
     known_products: list[str],
-    active_product: Optional[str] = None
+    active_product: Optional[str] = None,
+    last_catalog_products: Optional[list[str]] = None,
+    pending_order_json: Optional[dict] = None,
 ) -> tuple[str, str]:
     """
     Build system and user prompts for LLM-based router.
@@ -556,16 +558,20 @@ def build_router_prompt(
         message: Current user message
         known_products: List of available product names
         active_product: Currently active product in session
+        last_catalog_products: Products from the last catalog response
+        pending_order_json: Current pending order context
         
     Returns:
         tuple: (system_prompt, user_prompt)
     """
-    system_prompt = SYSTEM_PROMPTS["router"]
+    system_prompt = ROUTER_SYSTEM_PROMPT
     
-    user_prompt = PROMPT_TEMPLATES["router"].format(
+    user_prompt = ROUTER_USER_PROMPT_TEMPLATE.format(
         message=message,
         known_products=json.dumps(known_products, indent=2),
-        active_product=active_product if active_product else "None"
+        active_product=active_product if active_product else "None",
+        last_catalog_products=json.dumps(last_catalog_products or [], indent=2),
+        pending_order_json=json.dumps(pending_order_json or {}, indent=2),
     )
     
     return system_prompt, user_prompt
@@ -596,7 +602,9 @@ def route_with_llm(
         system_prompt, user_prompt = build_router_prompt(
             state["message"],
             known_products,
-            state.get("active_product")
+            state.get("active_product"),
+            state.get("last_catalog_products"),
+            state.get("pending_order_json"),
         )
         
         llm = get_llm()
