@@ -27,15 +27,17 @@ class OrderCreate(BaseModel):
 
 
 class PublicOrderCreate(BaseModel):
-    """Single-product flat format used by the LangGraph chatbot."""
+    """Single-product order format used by the LangGraph chatbot."""
+    shop_id: str | None = None
+    session_id: str | None = None
     product_id: str = Field(min_length=1)
     quantity: int = Field(default=1, ge=1)
-    customer_name: str = Field(min_length=1, max_length=160)
-    customer_phone: str = Field(min_length=1, max_length=40)
-    city: str = Field(min_length=1, max_length=120)
-    address: str = Field(min_length=1, max_length=300)
+    customer_info: CustomerInfoCreate | None = None
+    customer_name: str | None = Field(default=None, min_length=1, max_length=160)
+    customer_phone: str | None = Field(default=None, min_length=1, max_length=40)
+    city: str | None = Field(default=None, min_length=1, max_length=120)
+    address: str | None = Field(default=None, min_length=1, max_length=300)
     payment_method: str | None = Field(default=None, max_length=80)
-    session_id: str | None = None
 
 
 class OrderUpdate(BaseModel):

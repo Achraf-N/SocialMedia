@@ -8,9 +8,11 @@ def load_session_state(state: ChatState) -> ChatState:
     """Load previous session state."""
     session = get_session_state(state["session_id"], state.get("shop_id"))
     state["active_product"] = session.get("active_product")
-    state["current_product_id"] = session.get("current_product_id")
+    state["active_product_id"] = session.get("active_product_id") or session.get("current_product_id")
+    state["active_product_name"] = session.get("active_product_name") or session.get("current_product_name") or state["active_product"]
+    state["current_product_id"] = state["active_product_id"]
     state["current_product"] = state["active_product"]
-    state["current_product_name"] = session.get("current_product_name") or state["active_product"]
+    state["current_product_name"] = state["active_product_name"]
     state["delivery_city"] = session.get("extracted_city")
     state["delivery_address"] = session.get("extracted_address")
     state["pending_order_json"] = session.get("pending_order_json")
