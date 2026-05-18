@@ -144,4 +144,4 @@ def delete_shop(shop_id: str, owner: dict = Depends(get_current_owner)) -> None:
 
     products_collection.delete_many({"owner_id": owner["_id"], "shop_id": ObjectId(shop_id)})
     categories_collection.delete_many({"owner_id": owner["_id"], "shop_id": ObjectId(shop_id)})
-    orders_collection.delete_many({"owner_id": owner["_id"], "shop_id": ObjectId(shop_id)})
+    orders_collection.delete_many({"shop_id": ObjectId(shop_id)})
