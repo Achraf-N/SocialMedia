@@ -6,7 +6,7 @@ import unicodedata
 from typing import Optional
 from lg_app.state import ChatState
 from lg_app.utils.product_matcher import find_product
-from lg_app.llm.prompts import SYSTEM_PROMPTS, PROMPT_TEMPLATES
+from lg_app.prompts.router_prompt import ROUTER_SYSTEM_PROMPT, ROUTER_USER_PROMPT_TEMPLATE
 
 
 def _contains_word(text: str, words: list[str]) -> bool:
@@ -183,6 +183,22 @@ def _is_pending_order_field_reply(text: str, has_city: bool) -> bool:
     )
 
 
+def _is_order_creation_signal(message: str, normalized: str) -> bool:
+    """Detect messages that should go directly to order creation."""
+    if re.search(r"\b(?:name|phone|city|delivery\s+address|address)\s*:", message, re.IGNORECASE):
+        return True
+    return _contains_any(
+        normalized,
+        [
+            "i want to order",
+            "i want to buy",
+            "place order",
+            "confirm order",
+            "checkout",
+        ],
+    )
+
+
 def _extract_delivery_location(message: str) -> tuple[Optional[str], Optional[str]]:
     """Extract simple city/address details from common commerce phrasing."""
     known_cities = [
@@ -226,6 +242,8 @@ def _extract_delivery_location(message: str) -> tuple[Optional[str], Optional[st
                 "other products",
             }:
                 continue
+            if _normalize_text(candidate).startswith(("order ", "buy ", "purchase ", "reserve ")):
+                continue
             if any(char.isdigit() for char in candidate) or "," in candidate:
                 address = candidate
             break
@@ -251,9 +269,15 @@ def _extract_delivery_location(message: str) -> tuple[Optional[str], Optional[st
                 "all other products",
                 "all products",
                 "other products",
+                "delivery",
+                "order",
+                "order the",
+                "buy it",
                 "order it",
                 "buy it",
             }:
+                continue
+            if _normalize_text(city).startswith(("order ", "buy ", "purchase ", "reserve ")):
                 continue
             return city.title(), address
 
@@ -308,6 +332,7 @@ def _normalize_router_result(result: dict, products: list[dict]) -> Optional[dic
         "shop_info_question",
         "availability_question",
         "order_intent",
+        "order_creation",
         "price_question",
         "delivery_question",
         "payment_question",
@@ -418,6 +443,11 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         "mawjoude",
     ]
     order_terms = [
+        "i want to order",
+        "i want to buy",
+        "place order",
+        "confirm order",
+        "checkout",
         "buy",
         "order",
         "purchase",
@@ -498,7 +528,10 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         msg_norm,
         bool(state.get("delivery_city")),
     ):
-        router_result["intent"] = "order_intent"
+        router_result["intent"] = "order_creation"
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
+    elif _is_order_creation_signal(message, msg_norm):
+        router_result["intent"] = "order_creation"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif _contains_any(msg_norm, delivery_terms) and not is_cash_on_delivery:
         router_result["intent"] = "delivery_question"
@@ -513,7 +546,7 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         router_result["intent"] = "availability_question"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif _contains_any(msg_norm, order_terms):
-        router_result["intent"] = "order_intent"
+        router_result["intent"] = "order_creation"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif explicit_product and _contains_any(msg_norm, info_terms):
         router_result["intent"] = "product_info_question"
@@ -539,7 +572,9 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
 def build_router_prompt(
     message: str,
     known_products: list[str],
-    active_product: Optional[str] = None
+    active_product: Optional[str] = None,
+    last_catalog_products: Optional[list[str]] = None,
+    pending_order_json: Optional[dict] = None,
 ) -> tuple[str, str]:
     """
     Build system and user prompts for LLM-based router.
@@ -548,16 +583,20 @@ def build_router_prompt(
         message: Current user message
         known_products: List of available product names
         active_product: Currently active product in session
+        last_catalog_products: Products from the last catalog response
+        pending_order_json: Current pending order context
         
     Returns:
         tuple: (system_prompt, user_prompt)
     """
-    system_prompt = SYSTEM_PROMPTS["router"]
+    system_prompt = ROUTER_SYSTEM_PROMPT
     
-    user_prompt = PROMPT_TEMPLATES["router"].format(
+    user_prompt = ROUTER_USER_PROMPT_TEMPLATE.format(
         message=message,
         known_products=json.dumps(known_products, indent=2),
-        active_product=active_product if active_product else "None"
+        active_product=active_product if active_product else "None",
+        last_catalog_products=json.dumps(last_catalog_products or [], indent=2),
+        pending_order_json=json.dumps(pending_order_json or {}, indent=2),
     )
     
     return system_prompt, user_prompt
@@ -588,7 +627,9 @@ def route_with_llm(
         system_prompt, user_prompt = build_router_prompt(
             state["message"],
             known_products,
-            state.get("active_product")
+            state.get("active_product"),
+            state.get("last_catalog_products"),
+            state.get("pending_order_json"),
         )
         
         llm = get_llm()
@@ -667,6 +708,15 @@ def deterministic_intent_router(state: ChatState) -> dict:
         result["intent"] = "product_info_question"
         result["confidence"] = 0.95
     
+    # Order creation field replies should not be routed as delivery questions.
+    elif _is_order_creation_signal(state["message"], msg_norm):
+        result["intent"] = "order_creation"
+        if product:
+            result["product_query"] = product["name"]
+        elif state.get("active_product"):
+            result["product_query"] = state["active_product"]
+        result["confidence"] = 0.95
+
     # Delivery has priority because "how much" can mean delivery cost/time.
     elif _contains_any(msg_norm, ["delivery", "deliver", "shipping", "ship", "address", "city", "cities", "delivery cost", "delivery price", "how much time", "how long", "arrive", "livraison", "katsifto", "tsifto", "sifto"]) and "cash on delivery" not in msg_norm:
         result["intent"] = "delivery_question"
@@ -697,8 +747,8 @@ def deterministic_intent_router(state: ChatState) -> dict:
         result["confidence"] = 0.95
     
     # Order intent
-    elif _contains_any(msg_norm, ["buy", "order", "purchase", "reserve", "confirm", "i want it", "take it", "send it to me", "can i buy", "bghit", "ncommandi", "commander", "commande", "acheter"]):
-        result["intent"] = "order_intent"
+    elif _contains_any(msg_norm, ["i want to order", "i want to buy", "place order", "confirm order", "checkout", "buy", "order", "purchase", "reserve", "confirm", "i want it", "take it", "send it to me", "can i buy", "bghit", "ncommandi", "commander", "commande", "acheter"]):
+        result["intent"] = "order_creation"
         if product:
             result["product_query"] = product["name"]
         elif state.get("active_product"):

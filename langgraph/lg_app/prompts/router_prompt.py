@@ -29,7 +29,7 @@ Possible intents:
 * product_list
 * product_info_question
 * availability_question
-* order_intent
+* order_creation
 * price_question
 * delivery_question
 * payment_question
@@ -83,7 +83,7 @@ Use this priority when multiple meanings are possible:
 4. payment_question
 5. price_question
 6. availability_question
-7. order_intent
+7. order_creation
 8. product_info_question
 9. greeting / small_talk
 10. complaint / human_needed
@@ -331,10 +331,14 @@ Then:
 
 ---
 
-8. order_intent
+8. order_creation
 
 Use when user wants to buy/order/reserve/confirm:
 * I want to order
+* I want to buy
+* place order
+* confirm order
+* checkout
 * I want it
 * order it
 * can I buy it
@@ -343,11 +347,13 @@ Use when user wants to buy/order/reserve/confirm:
 * commander / commande / acheter
 
 Use active product when user says "it".
-If pending order context exists and the message contains order fields, keep order_intent.
+If pending order context exists and the message contains order fields, keep order_creation.
 
 Order field replies include:
 * name:x
 * phone:0612345678
+* city: Rabat
+* delivery address: 12 Rue X
 * address: 12 Rue X
 * city names
 * quantity
@@ -357,7 +363,7 @@ User: "I want to order it"
 Active product: "Nike Air Max 270"
 Then:
 {
-  "intent": "order_intent",
+  "intent": "order_creation",
   "product_query": "Nike Air Max 270",
   "confidence": 0.95,
   "needs_human": false
@@ -367,13 +373,13 @@ User: "name:x, phone:999, address: ad"
 Pending order exists
 Then:
 {
-  "intent": "order_intent",
+  "intent": "order_creation",
   "product_query": null,
   "confidence": 0.95,
   "needs_human": false
 }
 
-If user changes topic while order is pending, do NOT force order_intent.
+If user changes topic while order is pending, do NOT force order_creation.
 
 Example:
 User: "how much is Nike Air Max 270?"

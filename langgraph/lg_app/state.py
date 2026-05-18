@@ -12,6 +12,8 @@ class ChatState(TypedDict):
     intent: Optional[str]
     product_query: Optional[str]
     active_product: Optional[str]
+    active_product_id: Optional[str]
+    active_product_name: Optional[str]
     current_product_id: Optional[str]
     current_product: Optional[str]
     current_product_name: Optional[str]
