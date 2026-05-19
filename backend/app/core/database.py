@@ -12,6 +12,8 @@ products_collection = database["products"]
 categories_collection = database["categories"]
 orders_collection = database["orders"]
 chat_sessions_collection = database["chat_sessions"]
+owner_conversations_collection = database["owner_conversations"]
+owner_conversation_messages_collection = database["owner_conversation_messages"]
 
 
 def create_indexes() -> None:
@@ -25,3 +27,5 @@ def create_indexes() -> None:
         [("owner_id", ASCENDING), ("shop_id", ASCENDING), ("name", ASCENDING)],
         unique=True,
     )
+    owner_conversations_collection.create_index([("owner_id", ASCENDING)])
+    owner_conversation_messages_collection.create_index([("conversation_id", ASCENDING)])
