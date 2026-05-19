@@ -13,10 +13,11 @@ def list_shops_node(state: OwnerChatState) -> OwnerChatState:
         return state
 
     shops = list_from_response(data, "shops")
+    state["last_shops"] = shops
     if not shops:
         state["response"] = "You do not have any shops yet."
     else:
-        lines = [f"{shop.get('name') or 'Unnamed shop'} ({shop.get('id') or shop.get('_id')})" for shop in shops]
+        lines = [str(shop.get("name") or "Unnamed shop") for shop in shops]
         state["response"] = "Your shops: " + "; ".join(lines)
     state["steps"].append("Listed owner shops")
     return state

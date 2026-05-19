@@ -9,6 +9,9 @@ class OwnerChatState(TypedDict):
     message: str
     selected_shop_id: Optional[str]
     selected_shop_name: Optional[str]
+    current_shop_id: Optional[str]
+    current_shop_name: Optional[str]
+    last_shops: list[dict]
     intent: Optional[str]
     response: Optional[str]
     steps: list[str]

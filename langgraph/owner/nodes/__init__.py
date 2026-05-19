@@ -1,5 +1,6 @@
 """Shared helpers for owner agent nodes."""
 
+import re
 from typing import Any
 
 from owner import owner_backend_client
@@ -27,7 +28,22 @@ def list_from_response(data: Any, key: str) -> list:
 
 
 def require_shop(state: OwnerChatState) -> bool:
-    if state.get("selected_shop_id"):
+    current_shop_id = state.get("current_shop_id") or state.get("selected_shop_id")
+    current_shop_name = state.get("current_shop_name") or state.get("selected_shop_name")
+    if current_shop_id:
+        state["selected_shop_id"] = current_shop_id
+        state["selected_shop_name"] = current_shop_name
+        state["current_shop_id"] = current_shop_id
+        state["current_shop_name"] = current_shop_name
+        return True
+
+    resolved_shop = resolve_shop_reference(state)
+    if resolved_shop:
+        state["selected_shop_id"] = str(resolved_shop.get("id") or resolved_shop.get("_id"))
+        state["selected_shop_name"] = str(resolved_shop.get("name") or state["selected_shop_id"])
+        state["current_shop_id"] = state["selected_shop_id"]
+        state["current_shop_name"] = state["selected_shop_name"]
+        state["steps"].append("Resolved current shop from previous shop list")
         return True
 
     shops_response = owner_backend_client.get_owner_shops(state["owner_id"])
@@ -43,6 +59,33 @@ def require_shop(state: OwnerChatState) -> bool:
     state["needs_clarification"] = True
     state["steps"].append("Missing selected shop")
     return False
+
+
+def resolve_shop_reference(state: OwnerChatState) -> dict | None:
+    shops = state.get("last_shops") or []
+    if not shops:
+        return None
+
+    message = state["message"].lower()
+    ordinal_map = {
+        "first": 0,
+        "1st": 0,
+        "one": 0,
+        "second": 1,
+        "2nd": 1,
+        "two": 1,
+        "third": 2,
+        "3rd": 2,
+        "three": 2,
+    }
+    for word, index in ordinal_map.items():
+        if re.search(rf"\b(?:the\s+)?{word}\s+shop\b", message) and 0 <= index < len(shops):
+            return shops[index]
+
+    if len(shops) == 1 and re.search(r"\b(this|that|the)\s+shops?\b", message):
+        return shops[0]
+
+    return None
 
 
 def backend_result_message(data: Any, default: str) -> str:

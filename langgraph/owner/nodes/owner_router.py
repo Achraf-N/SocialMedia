@@ -1,11 +1,28 @@
-"""Deterministic owner-agent intent router."""
+"""Owner-agent intent router with deterministic and optional LLM modes."""
 
+import json
 import re
 
 from owner.owner_state import OwnerChatState
+from owner.prompts.router_prompt import OWNER_ROUTER_SYSTEM_PROMPT, OWNER_ROUTER_USER_PROMPT_TEMPLATE
 
 
 VALID_STATUSES = {"pending", "confirmed", "processing", "shipped", "delivered", "cancelled"}
+VALID_INTENTS = {
+    "greeting",
+    "list_shops",
+    "select_shop",
+    "shop_summary",
+    "list_products",
+    "add_product",
+    "update_product",
+    "update_stock",
+    "update_price",
+    "list_orders",
+    "update_order_status",
+    "help",
+    "unknown",
+}
 
 
 def _contains(text: str, phrases: list[str]) -> bool:
@@ -26,7 +43,83 @@ def _extract_order_id(message: str) -> str | None:
     return match.group(1) if match else None
 
 
-def owner_router(state: OwnerChatState) -> OwnerChatState:
+def _parse_router_json(response_text: str) -> dict | None:
+    try:
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        pass
+
+    match = re.search(r"\{.*\}", response_text, re.DOTALL)
+    if not match:
+        return None
+
+    try:
+        return json.loads(match.group(0))
+    except json.JSONDecodeError:
+        return None
+
+
+def _normalize_llm_result(result: dict) -> dict | None:
+    intent = result.get("intent")
+    if intent not in VALID_INTENTS:
+        return None
+
+    confidence = result.get("confidence", 0.85)
+    try:
+        confidence = float(confidence)
+    except (TypeError, ValueError):
+        confidence = 0.85
+
+    extracted_data = result.get("extracted_data") or {}
+    if not isinstance(extracted_data, dict):
+        extracted_data = {}
+
+    return {
+        "intent": intent,
+        "confidence": max(0.0, min(confidence, 1.0)),
+        "extracted_data": {
+            key: value
+            for key, value in extracted_data.items()
+            if value not in (None, "", "null", "None")
+        },
+    }
+
+
+def build_owner_router_prompt(state: OwnerChatState) -> tuple[str, str]:
+    """Build system and user prompts for owner-agent LLM routing."""
+    user_prompt = OWNER_ROUTER_USER_PROMPT_TEMPLATE.format(
+        message=state["message"],
+        selected_shop_id=state.get("selected_shop_id") or "None",
+        selected_shop_name=state.get("selected_shop_name") or "None",
+        last_intent=state.get("intent") or state.get("extracted_data", {}).get("last_intent") or "None",
+    )
+    return OWNER_ROUTER_SYSTEM_PROMPT, user_prompt
+
+
+def route_with_llm(state: OwnerChatState, use_llm: bool = False) -> dict | None:
+    """Classify owner intent with Ollama when explicitly enabled."""
+    if not use_llm:
+        return None
+
+    try:
+        from owner.llm import get_llm
+
+        system_prompt, user_prompt = build_owner_router_prompt(state)
+        response_text = get_llm().generate(
+            prompt=user_prompt,
+            system=system_prompt,
+            temperature=0.0,
+            max_tokens=256,
+        )
+        parsed = _parse_router_json(response_text)
+        if not parsed:
+            return None
+        return _normalize_llm_result(parsed)
+    except Exception:
+        return None
+
+
+def deterministic_owner_router(state: OwnerChatState) -> dict:
     """Route owner message to an intent and capture lightweight fields."""
     text = state["message"].strip()
     lower = text.lower()
@@ -69,8 +162,27 @@ def owner_router(state: OwnerChatState) -> OwnerChatState:
         if status:
             extracted["status"] = status
 
-    state["intent"] = intent
-    state["extracted_data"] = {**state.get("extracted_data", {}), **extracted}
-    state["confidence"] = 0.95 if intent != "unknown" else 0.4
-    state["steps"].append(f"Owner router intent: {intent}")
+    return {
+        "intent": intent,
+        "extracted_data": extracted,
+        "confidence": 0.95 if intent != "unknown" else 0.4,
+    }
+
+
+def owner_router(state: OwnerChatState) -> OwnerChatState:
+    """Route owner message to an intent and capture lightweight fields."""
+    router_result = route_with_llm(state, use_llm=True)
+    if router_result is None:
+        router_result = deterministic_owner_router(state)
+        state["steps"].append("Owner router used deterministic fallback")
+    else:
+        state["steps"].append("Owner router used local LLM")
+
+    state["intent"] = router_result["intent"]
+    state["extracted_data"] = {
+        **state.get("extracted_data", {}),
+        **router_result.get("extracted_data", {}),
+    }
+    state["confidence"] = router_result["confidence"]
+    state["steps"].append(f"Owner router intent: {state['intent']}")
     return state

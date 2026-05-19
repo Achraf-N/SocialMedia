@@ -12,6 +12,9 @@ def get_owner_state(owner_id: str) -> dict:
         owner_sessions[owner_id] = {
             "selected_shop_id": None,
             "selected_shop_name": None,
+            "current_shop_id": None,
+            "current_shop_name": None,
+            "last_shops": [],
             "last_intent": None,
         }
     return owner_sessions[owner_id]
@@ -21,11 +24,17 @@ def save_owner_state(
     owner_id: str,
     selected_shop_id: Optional[str],
     selected_shop_name: Optional[str],
+    last_shops: Optional[list[dict]],
     last_intent: Optional[str],
 ) -> None:
     """Persist owner context."""
+    current_shop_id = selected_shop_id
+    current_shop_name = selected_shop_name
     owner_sessions[owner_id] = {
         "selected_shop_id": selected_shop_id,
         "selected_shop_name": selected_shop_name,
+        "current_shop_id": current_shop_id,
+        "current_shop_name": current_shop_name,
+        "last_shops": last_shops or [],
         "last_intent": last_intent,
     }
