@@ -95,6 +95,7 @@ def run_tests():
         result = run_owner_chat(OWNER_ID, "select Beauty Shop Casa")
         assert result["intent"] == "select_shop", result
         assert result["selected_shop_id"] == "shop-1", result
+        assert result["current_shop_id"] == "shop-1", result
 
         reset_owner_memory()
         result = run_owner_chat(OWNER_ID, "show products")
@@ -104,6 +105,7 @@ def run_tests():
         run_owner_chat(OWNER_ID, "select Beauty Shop Casa")
         result = run_owner_chat(OWNER_ID, "show products")
         assert result["intent"] == "list_products", result
+        assert result["current_shop_id"] == "shop-1", result
         assert "Hair Oil" in result["response"], result
         assert_call(mock, "get_shop_products")
 

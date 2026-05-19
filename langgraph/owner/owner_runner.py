@@ -10,6 +10,9 @@ def run_owner_chat(owner_id: str, message: str) -> dict:
         "message": message,
         "selected_shop_id": None,
         "selected_shop_name": None,
+        "current_shop_id": None,
+        "current_shop_name": None,
+        "last_shops": [],
         "intent": None,
         "response": None,
         "steps": [],
@@ -23,5 +26,7 @@ def run_owner_chat(owner_id: str, message: str) -> dict:
         "intent": final_state["intent"],
         "selected_shop_id": final_state["selected_shop_id"],
         "selected_shop_name": final_state["selected_shop_name"],
+        "current_shop_id": final_state.get("current_shop_id"),
+        "current_shop_name": final_state.get("current_shop_name"),
         "steps": final_state["steps"],
     }

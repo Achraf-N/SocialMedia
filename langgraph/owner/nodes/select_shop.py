@@ -34,6 +34,8 @@ def select_shop_node(state: OwnerChatState) -> OwnerChatState:
 
     state["selected_shop_id"] = str(selected.get("id") or selected.get("_id"))
     state["selected_shop_name"] = str(selected.get("name") or state["selected_shop_id"])
+    state["current_shop_id"] = state["selected_shop_id"]
+    state["current_shop_name"] = state["selected_shop_name"]
     state["response"] = f"Selected shop: {state['selected_shop_name']}."
     state["steps"].append("Selected owner shop")
     return state

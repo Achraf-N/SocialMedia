@@ -7,6 +7,7 @@ from app.controllers import (
     auth_controller,
     category_controller,
     order_controller,
+    owner_chat_controller,
     product_controller,
     shop_controller,
 )
@@ -189,3 +190,4 @@ app.include_router(category_controller.router, prefix="/api")
 app.include_router(order_controller.router, prefix="/api")
 app.include_router(orders_router, prefix="/api")
 app.include_router(owner_assistant_controller.router, prefix="/api")
+app.include_router(owner_chat_controller.router, prefix="/api")
