@@ -19,13 +19,29 @@ def list_products_node(state: OwnerChatState) -> OwnerChatState:
     if not products:
         state["response"] = "No products found for this shop."
     else:
+        message = state["message"].lower()
+        if "most expensive" in message or "highest price" in message:
+            product = max(products, key=lambda item: float(item.get("price") or 0))
+            state["response"] = "Most expensive product: " + _format_product(product)
+            state["steps"].append("Listed most expensive product")
+            return state
+        if "cheapest" in message or "lowest price" in message:
+            product = min(products, key=lambda item: float(item.get("price") or 0))
+            state["response"] = "Cheapest product: " + _format_product(product)
+            state["steps"].append("Listed cheapest product")
+            return state
+
         parts = []
         for product in products:
-            name = product.get("name") or "Unnamed product"
-            price = product.get("price", "n/a")
-            stock = product.get("stock", "n/a")
-            available = product.get("available", stock != 0)
-            parts.append(f"{name}: {price} MAD, stock {stock}, {'available' if available else 'unavailable'}")
+            parts.append(_format_product(product))
         state["response"] = "Products: " + "; ".join(parts)
     state["steps"].append("Listed shop products")
     return state
+
+
+def _format_product(product: dict) -> str:
+    name = product.get("name") or "Unnamed product"
+    price = product.get("price", "n/a")
+    stock = product.get("stock", "n/a")
+    available = product.get("available", stock != 0)
+    return f"{name}: {price} MAD, stock {stock}, {'available' if available else 'unavailable'}"

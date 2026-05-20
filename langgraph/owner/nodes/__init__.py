@@ -82,7 +82,10 @@ def resolve_shop_reference(state: OwnerChatState) -> dict | None:
         if re.search(rf"\b(?:the\s+)?{word}\s+shop\b", message) and 0 <= index < len(shops):
             return shops[index]
 
-    if len(shops) == 1 and re.search(r"\b(this|that|the)\s+shops?\b", message):
+    if re.search(r"\b(?:the\s+)?(?:last|latest|final)\s+shops?\b", message):
+        return shops[-1]
+
+    if len(shops) == 1 and re.search(r"\b(this|that|the|last)\s+shops?\b", message):
         return shops[0]
 
     return None
