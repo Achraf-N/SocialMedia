@@ -31,19 +31,19 @@ def require_shop(state: OwnerChatState) -> bool:
     current_shop_id = state.get("current_shop_id") or state.get("selected_shop_id")
     current_shop_name = state.get("current_shop_name") or state.get("selected_shop_name")
     if current_shop_id:
-        state["selected_shop_id"] = current_shop_id
-        state["selected_shop_name"] = current_shop_name
-        state["current_shop_id"] = current_shop_id
-        state["current_shop_name"] = current_shop_name
+        set_current_shop(state, {"id": current_shop_id, "name": current_shop_name})
         return True
 
     resolved_shop = resolve_shop_reference(state)
     if resolved_shop:
-        state["selected_shop_id"] = str(resolved_shop.get("id") or resolved_shop.get("_id"))
-        state["selected_shop_name"] = str(resolved_shop.get("name") or state["selected_shop_id"])
-        state["current_shop_id"] = state["selected_shop_id"]
-        state["current_shop_name"] = state["selected_shop_name"]
+        set_current_shop(state, resolved_shop)
         state["steps"].append("Resolved current shop from previous shop list")
+        return True
+
+    last_shops = state.get("last_shops") or []
+    if len(last_shops) == 1:
+        set_current_shop(state, last_shops[0])
+        state["steps"].append("Auto-selected only shop from previous shop list")
         return True
 
     shops_response = owner_backend_client.get_owner_shops(state["owner_id"])
@@ -51,6 +51,11 @@ def require_shop(state: OwnerChatState) -> bool:
         state["response"] = "Which shop would you like to manage?"
     else:
         shops = list_from_response(shops_response, "shops")
+        state["last_shops"] = shops
+        if len(shops) == 1:
+            set_current_shop(state, shops[0])
+            state["steps"].append("Auto-selected only owner shop")
+            return True
         if len(shops) > 1:
             names = [str(shop.get("name") or shop.get("id") or shop.get("_id")) for shop in shops]
             state["response"] = "Which shop would you like to manage? Available shops: " + ", ".join(names) + "."
@@ -59,6 +64,15 @@ def require_shop(state: OwnerChatState) -> bool:
     state["needs_clarification"] = True
     state["steps"].append("Missing selected shop")
     return False
+
+
+def set_current_shop(state: OwnerChatState, shop: dict) -> None:
+    shop_id = str(shop.get("id") or shop.get("_id"))
+    shop_name = str(shop.get("name") or shop_id)
+    state["selected_shop_id"] = shop_id
+    state["selected_shop_name"] = shop_name
+    state["current_shop_id"] = shop_id
+    state["current_shop_name"] = shop_name
 
 
 def resolve_shop_reference(state: OwnerChatState) -> dict | None:
