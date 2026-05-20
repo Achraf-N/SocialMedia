@@ -130,7 +130,23 @@ def deterministic_owner_router(state: OwnerChatState) -> dict:
         intent = "greeting"
     elif _contains(lower, ["help", "what can you do", "how can you help me"]):
         intent = "help"
-    elif _contains(lower, ["show my shops", "list my shops", "what shops do i have", "my stores", "my shops"]):
+    elif _contains(
+        lower,
+        [
+            "show my shops",
+            "show shops",
+            "list my shops",
+            "list shop",
+            "list shops",
+            "what are list shop",
+            "what shops do i have",
+            "what are shop available",
+            "what shops are available",
+            "available shops",
+            "my stores",
+            "my shops",
+        ],
+    ):
         intent = "list_shops"
     elif _contains(lower, ["select ", "use shop ", "choose shop ", "switch to ", "work on this shop", "choose shop id"]):
         intent = "select_shop"
@@ -142,7 +158,24 @@ def deterministic_owner_router(state: OwnerChatState) -> dict:
         ).strip()
     elif _contains(lower, ["shop summary", "shop overview", "how is my shop doing", "what is happening in my store", "business overview"]):
         intent = "shop_summary"
-    elif _contains(lower, ["show products", "list products", "what products are in this shop", "show stock", "inventory", "stock list"]):
+    elif _contains(
+        lower,
+        [
+            "show products",
+            "list products",
+            "product available",
+            "products available",
+            "available products",
+            "what are product available",
+            "what are products available",
+            "what products are in this shop",
+            "what products are in this shops",
+            "what products are in this store",
+            "show stock",
+            "inventory",
+            "stock list",
+        ],
+    ):
         intent = "list_products"
     elif _contains(lower, ["add product", "create new product", "new product"]):
         intent = "add_product"
@@ -172,9 +205,13 @@ def deterministic_owner_router(state: OwnerChatState) -> dict:
 def owner_router(state: OwnerChatState) -> OwnerChatState:
     """Route owner message to an intent and capture lightweight fields."""
     router_result = route_with_llm(state, use_llm=True)
+    deterministic_result = deterministic_owner_router(state)
     if router_result is None:
-        router_result = deterministic_owner_router(state)
+        router_result = deterministic_result
         state["steps"].append("Owner router used deterministic fallback")
+    elif router_result["intent"] == "unknown" and deterministic_result["intent"] != "unknown":
+        router_result = deterministic_result
+        state["steps"].append("Owner router corrected unknown with deterministic fallback")
     else:
         state["steps"].append("Owner router used local LLM")
 
