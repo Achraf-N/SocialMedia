@@ -28,6 +28,31 @@ def list_from_response(data: Any, key: str) -> list:
 
 
 def require_shop(state: OwnerChatState) -> bool:
+    if has_explicit_shop_reference(state["message"]):
+        resolved_shop = resolve_shop_reference(state)
+        if not resolved_shop:
+            shops_response = owner_backend_client.get_owner_shops(state["owner_id"])
+            if not is_error(shops_response):
+                state["last_shops"] = list_from_response(shops_response, "shops")
+                resolved_shop = resolve_shop_reference(state)
+
+        if resolved_shop:
+            set_current_shop(state, resolved_shop)
+            state["steps"].append("Resolved explicit shop reference")
+            return True
+
+        shops = state.get("last_shops") or []
+        names = [
+            f"{index}. {shop.get('name') or shop.get('id') or shop.get('_id')}"
+            for index, shop in enumerate(shops, start=1)
+        ]
+        state["response"] = "I could not find that shop."
+        if names:
+            state["response"] += " Available shops: " + ", ".join(names) + "."
+        state["needs_clarification"] = True
+        state["steps"].append("Explicit shop reference unclear")
+        return False
+
     current_shop_id = state.get("current_shop_id") or state.get("selected_shop_id")
     current_shop_name = state.get("current_shop_name") or state.get("selected_shop_name")
     if current_shop_id:
@@ -75,12 +100,31 @@ def set_current_shop(state: OwnerChatState, shop: dict) -> None:
     state["current_shop_name"] = shop_name
 
 
+def has_explicit_shop_reference(message: str) -> bool:
+    lowered = message.lower()
+    return bool(
+        re.search(r"\bshop\s*\d+\b", lowered)
+        or re.search(r"\b\d+(?:st|nd|rd|th)?\s+shop\b", lowered)
+        or re.search(r"\b(?:first|second|third|last|latest|final)\s+shops?\b", lowered)
+    )
+
+
 def resolve_shop_reference(state: OwnerChatState) -> dict | None:
     shops = state.get("last_shops") or []
     if not shops:
         return None
 
     message = state["message"].lower()
+    numbered = re.search(r"\bshop\s*(\d+)\b", message) or re.search(
+        r"\b(\d+)(?:st|nd|rd|th)?\s+shop\b",
+        message,
+    )
+    if numbered:
+        index = int(numbered.group(1)) - 1
+        if 0 <= index < len(shops):
+            return shops[index]
+        return None
+
     ordinal_map = {
         "first": 0,
         "1st": 0,

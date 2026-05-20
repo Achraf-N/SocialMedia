@@ -1,7 +1,10 @@
 """Shop summary node."""
 
+import json
+
 from owner import owner_backend_client
 from owner.nodes import error_message, is_error, list_from_response, require_shop
+from owner.nodes.llm_response import generate_owner_response
 from owner.owner_state import OwnerChatState
 
 
@@ -26,9 +29,24 @@ def shop_summary_node(state: OwnerChatState) -> OwnerChatState:
     low_stock = [p for p in products if int(p.get("stock") or 0) <= 3]
     pending_orders = [o for o in orders if o.get("status") == "pending"]
     shop_name = state.get("selected_shop_name") or "this shop"
-    state["response"] = (
+    fallback = (
         f"{shop_name} summary: {len(products)} products, "
         f"{len(low_stock)} low-stock products, {len(pending_orders)} pending orders."
+    )
+    summary = {
+        "shop_name": shop_name,
+        "product_count": len(products),
+        "low_stock_product_count": len(low_stock),
+        "low_stock_products": [p.get("name") for p in low_stock],
+        "pending_order_count": len(pending_orders),
+    }
+    state["response"] = (
+        generate_owner_response(
+            "shop_summary",
+            message=state["message"],
+            summary=json.dumps(summary, ensure_ascii=False),
+        )
+        or fallback
     )
     state["steps"].append("Generated shop summary")
     return state

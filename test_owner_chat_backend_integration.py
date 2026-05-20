@@ -17,6 +17,7 @@ sys.path.insert(0, str(LANGGRAPH_DIR))
 from app.core.dependencies import get_current_owner
 from app.core.database import owners_collection, products_collection, shops_collection
 from app.main import app
+from app.controllers import owner_chat_controller
 from owner.owner_memory import owner_sessions
 from owner.nodes import owner_router
 
@@ -119,6 +120,8 @@ def run_tests():
     seed_data()
     owner_sessions.pop(str(AUTH_OWNER_ID), None)
     original_router = install_router_fallback()
+    original_get_test_owner = owner_chat_controller._get_test_owner
+    owner_chat_controller._get_test_owner = fake_current_owner
     app.dependency_overrides[get_current_owner] = fake_current_owner
     client = TestClient(app)
 
@@ -150,6 +153,7 @@ def run_tests():
         print("owner chat backend integration test passed")
     finally:
         app.dependency_overrides.pop(get_current_owner, None)
+        owner_chat_controller._get_test_owner = original_get_test_owner
         restore_router(original_router)
         owner_sessions.pop(str(AUTH_OWNER_ID), None)
         cleanup_data()
