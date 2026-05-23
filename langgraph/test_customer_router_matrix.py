@@ -115,6 +115,8 @@ class CustomerRouterMatrixTest(unittest.TestCase):
             ("I need to order three Adidas Samba OG0", "order_creation", "Adidas Samba OG0"),
             ("name: achraf, phone: 0660606060, city: Rabat", "order_creation", "Adidas Samba OG0"),
             ("what is my order status?", "order_status", None),
+            ("give me more details about order", "order_status", None),
+            ("give me more details about my order", "order_status", None),
             ("where is my order?", "order_status", None),
             ("where my order", "order_status", None),
             ("when my order", "order_status", None),

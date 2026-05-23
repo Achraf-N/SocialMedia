@@ -275,6 +275,43 @@ def test_order_agent_handles_product_number_quantities_with_in_preposition(monke
     ]
 
 
+def test_order_agent_handles_partial_product_names_with_quantities(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 3000}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "i need to order two mac and one apple, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville",
+        active_product_id=None,
+    )
+    state["shop_data"] = [
+        {
+            "id": "prod-mac",
+            "name": "MacBook Pro",
+            "price": 1000,
+            "available": True,
+            "stock": 4,
+        },
+        {
+            "id": "prod-apple",
+            "name": "Apple Watch",
+            "price": 1000,
+            "available": True,
+            "stock": 4,
+        },
+    ]
+
+    order_agent(state)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-mac", "quantity": 2},
+        {"product_id": "prod-apple", "quantity": 1},
+    ]
+
+
 def test_product_change_clears_pending_order_quantity():
     state = make_state("tell me about Face Cream")
     state["active_product"] = "Hair Oil"
@@ -349,6 +386,8 @@ def test_router_classifies_short_order_tracking_questions():
         "when will my order arrive",
         "order tracking",
         "what is the final price of my order",
+        "give me more details about order",
+        "give me more details about my order",
     ]:
         result = deterministic_intent_router(make_state(message))
         assert result["intent"] == "order_status", message

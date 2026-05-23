@@ -80,6 +80,18 @@ def _catalog_product_by_position(state: ChatState, position: int) -> dict[str, A
     return None
 
 
+def _product_aliases(product: dict[str, Any]) -> list[str]:
+    name = str(product.get("name") or "").lower()
+    aliases = {name}
+    tokens = re.findall(r"[a-z0-9]+", name)
+    for token in tokens:
+        if len(token) >= 4:
+            aliases.add(token)
+        if len(token) >= 5:
+            aliases.add(token[:3])
+    return sorted((alias for alias in aliases if alias), key=len, reverse=True)
+
+
 def _extract_labeled_fields(message: str) -> dict[str, str]:
     fields: dict[str, str] = {}
     label_pattern = r"delivery\s+address|address|name|phone|city"
@@ -197,11 +209,22 @@ def _extract_mentioned_items(state: ChatState, quantity: int | None) -> list[dic
     if len(catalog_position_items) > 1:
         return catalog_position_items
 
+    quantity_pattern = r"\d+|" + "|".join(QUANTITY_WORDS)
     for product in products:
         product_id = _product_id(product)
         product_name = str(product.get("name") or "")
         if not product_id or not product_name:
             continue
+        for alias in _product_aliases(product):
+            match = re.search(
+                rf"\b(?:(?P<qty>{quantity_pattern})\s+)?{re.escape(alias)}\b",
+                message,
+            )
+            if match and product_id not in seen_ids:
+                item_quantity = _quantity_from_token(match.group("qty") or "1") or 1
+                items.append({"product_id": product_id, "quantity": item_quantity})
+                seen_ids.add(product_id)
+                break
         if product_name.lower() in message and product_id not in seen_ids:
             items.append({"product_id": product_id, "quantity": 1})
             seen_ids.add(product_id)
