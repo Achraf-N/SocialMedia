@@ -144,6 +144,49 @@ def test_order_agent_extracts_quantity_before_product_name(monkeypatch):
     assert calls[0]["quantity"] == 3
 
 
+def test_order_agent_calls_backend_with_multiple_items(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 219}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "I want to order Hair Oil and Face Cream, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    )
+
+    result = order_agent(state)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-123", "quantity": 1},
+        {"product_id": "prod-456", "quantity": 1},
+    ]
+    assert "product_id" not in calls[0]
+    assert "Total: 219 MAD" in result["response"]
+
+
+def test_order_agent_uses_last_catalog_for_these_three_products(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 339}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "I want to order these 2 products, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    )
+    state["last_catalog_products"] = ["Hair Oil", "Face Cream"]
+
+    order_agent(state)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-123", "quantity": 1},
+        {"product_id": "prod-456", "quantity": 1},
+    ]
+
+
 def test_product_change_clears_pending_order_quantity():
     state = make_state("tell me about Face Cream")
     state["active_product"] = "Hair Oil"
@@ -217,6 +260,7 @@ def test_router_classifies_short_order_tracking_questions():
         "where my order",
         "when will my order arrive",
         "order tracking",
+        "what is the final price of my order",
     ]:
         result = deterministic_intent_router(make_state(message))
         assert result["intent"] == "order_status", message

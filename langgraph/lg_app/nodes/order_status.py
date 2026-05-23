@@ -25,6 +25,13 @@ def _product_summary(order: dict) -> str:
     return ", ".join(parts)
 
 
+def _total_summary(order: dict) -> str:
+    total = order.get("total_price")
+    if total is None:
+        return ""
+    return f" Total: {total} MAD."
+
+
 def order_status_agent(state: ChatState) -> ChatState:
     """Read the latest order status for this customer session."""
     try:
@@ -40,10 +47,11 @@ def order_status_agent(state: ChatState) -> ChatState:
         status = order.get("status", "pending")
         order_id = order.get("id") or order.get("order_id")
         summary = _product_summary(order)
+        total = _total_summary(order)
         if order_id:
-            state["response"] = f"Your latest order ({summary}) is currently {status}. Order ID: {order_id}."
+            state["response"] = f"Your latest order ({summary}) is currently {status}.{total} Order ID: {order_id}."
         else:
-            state["response"] = f"Your latest order ({summary}) is currently {status}."
+            state["response"] = f"Your latest order ({summary}) is currently {status}.{total}"
         state["steps"].append("Read latest order status")
     except requests.HTTPError as exc:
         detail = "I could not check your order status right now."

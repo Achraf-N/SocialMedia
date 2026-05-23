@@ -156,28 +156,44 @@ def _public_customer_info(order_in: PublicOrderCreate) -> dict:
 
 def _create_public_order(shop_id: str, order_in: PublicOrderCreate) -> dict:
     shop = _get_shop(shop_id)
-    if not ObjectId.is_valid(order_in.product_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid product id")
-
-    product = products_collection.find_one(
-        {"_id": ObjectId(order_in.product_id), "shop_id": shop["_id"]}
-    )
-    if not product:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    raw_items = order_in.items or []
+    if not raw_items:
+        if not order_in.product_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="product_id or items is required",
+            )
+        raw_items = [{"product_id": order_in.product_id, "quantity": order_in.quantity}]
 
     customer_info = _public_customer_info(order_in)
-    unit_price = float(product.get("price", 0))
-    total_price = unit_price * order_in.quantity
+    items_to_insert = []
+    total_price = 0.0
+    products_by_id = {}
+    for raw_item in raw_items:
+        product_id = raw_item.product_id if hasattr(raw_item, "product_id") else raw_item["product_id"]
+        quantity = raw_item.quantity if hasattr(raw_item, "quantity") else raw_item["quantity"]
+        if not ObjectId.is_valid(product_id):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid product id")
+
+        product = products_collection.find_one(
+            {"_id": ObjectId(product_id), "shop_id": shop["_id"]}
+        )
+        if not product:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+        unit_price = float(product.get("price", 0))
+        total_price += unit_price * quantity
+        products_by_id[product["_id"]] = product
+        items_to_insert.append({
+            "product_id": product["_id"],
+            "quantity": quantity,
+        })
+
     now = now_utc()
     order = {
         "session_id": order_in.session_id,
         "shop_id": shop["_id"],
-        "items": [
-            {
-                "product_id": product["_id"],
-                "quantity": order_in.quantity,
-            }
-        ],
+        "items": items_to_insert,
         "total_price": total_price,
         "status": "pending",
         "customer_info": customer_info,
@@ -186,12 +202,14 @@ def _create_public_order(shop_id: str, order_in: PublicOrderCreate) -> dict:
     }
     reserved_items: list[tuple[ObjectId, int]] = []
     try:
-        product = _reserve_product_stock(
-            {"_id": product["_id"], "shop_id": shop["_id"]},
-            order_in.quantity,
-            "Product is not available or out of stock",
-        )
-        reserved_items.append((product["_id"], order_in.quantity))
+        for item in items_to_insert:
+            reserved_product = _reserve_product_stock(
+                {"_id": item["product_id"], "shop_id": shop["_id"]},
+                item["quantity"],
+                "Product is not available or out of stock",
+            )
+            reserved_items.append((reserved_product["_id"], item["quantity"]))
+            products_by_id[reserved_product["_id"]] = reserved_product
         result = orders_collection.insert_one(order)
     except HTTPException:
         _restore_reserved_stock(reserved_items)
@@ -204,8 +222,15 @@ def _create_public_order(shop_id: str, order_in: PublicOrderCreate) -> dict:
         "message": "Order created successfully.",
         "order_id": str(result.inserted_id),
         "status": "pending",
-        "product": serialize_document(product),
-        "quantity": order_in.quantity,
+        "product": serialize_document(next(iter(products_by_id.values()))) if len(products_by_id) == 1 else None,
+        "items": [
+            {
+                "product": serialize_document(products_by_id[item["product_id"]]),
+                "quantity": item["quantity"],
+            }
+            for item in items_to_insert
+        ],
+        "quantity": sum(item["quantity"] for item in items_to_insert),
         "total_price": total_price,
         "delivery": _delivery_summary(shop, customer_info["city"]),
     }

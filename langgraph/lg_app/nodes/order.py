@@ -43,6 +43,11 @@ def _clean(value: str) -> str:
     return value.strip(" \t\r\n.,;!?")
 
 
+def _product_id(product: dict[str, Any]) -> str | None:
+    value = product.get("id") or product.get("_id")
+    return str(value) if value is not None else None
+
+
 def _extract_labeled_fields(message: str) -> dict[str, str]:
     fields: dict[str, str] = {}
     label_pattern = r"delivery\s+address|address|name|phone|city"
@@ -88,7 +93,7 @@ def _extract_quantity(message: str) -> int | None:
         r"\b(?:order|buy|purchase|reserve|get|take|need|want)\s+(?:to\s+)?(?:order|buy|purchase|get|take)?\s*(\d+)\b",
         r"\bx\s*(\d+)\b",
         r"\b(\d+)\s*x\b",
-        r"\b(\d+)\s*(?:pieces?|pcs?|units?)\b",
+        r"\b(\d+)\s*(?:pieces?|pcs?|units?|products?|items?)\b",
     ]
     for pattern in patterns:
         match = re.search(pattern, message, re.IGNORECASE)
@@ -104,11 +109,52 @@ def _extract_quantity(message: str) -> int | None:
             normalized,
         ):
             return quantity
-        if re.search(rf"\b{word}\s+(?:pieces?|pcs?|units?|items?|stuff|of them|from)\b", normalized):
+        if re.search(rf"\b{word}\s+(?:pieces?|pcs?|units?|products?|items?|stuff|of them|from)\b", normalized):
             return quantity
         if re.search(rf"\b(?:qty|quantity)\s*:?\s*{word}\b", normalized):
             return quantity
     return None
+
+
+def _extract_mentioned_items(state: ChatState, quantity: int | None) -> list[dict[str, Any]]:
+    """Build order items from explicitly mentioned products or recent catalog references."""
+    message = state["message"].lower()
+    products = state.get("shop_data") or []
+    items: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+
+    for product in products:
+        product_id = _product_id(product)
+        product_name = str(product.get("name") or "")
+        if not product_id or not product_name:
+            continue
+        if product_name.lower() in message and product_id not in seen_ids:
+            items.append({"product_id": product_id, "quantity": 1})
+            seen_ids.add(product_id)
+
+    catalog = state.get("last_catalog_products") or []
+    catalog_count = quantity or len(catalog)
+    references_catalog = (
+        bool(catalog)
+        and re.search(
+            r"\b(?:these|those|all|the)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)?\s*products?\b",
+            message,
+        )
+    )
+    if references_catalog:
+        products_by_name = {str(product.get("name")): product for product in products}
+        for product_name in catalog[:catalog_count]:
+            product = products_by_name.get(product_name)
+            if not product:
+                continue
+            product_id = _product_id(product)
+            if product_id and product_id not in seen_ids:
+                items.append({"product_id": product_id, "quantity": 1})
+                seen_ids.add(product_id)
+
+    if len(items) > 1:
+        return items
+    return []
 
 
 def _extract_order_fields(message: str) -> dict[str, Any]:
@@ -166,6 +212,8 @@ def _merge_order_data(order: dict[str, Any], extracted: dict[str, Any]) -> dict[
         merged["quantity"] = extracted["quantity"]
     else:
         merged.setdefault("quantity", 1)
+    if extracted.get("items"):
+        merged["items"] = extracted["items"]
     return merged
 
 
@@ -210,16 +258,18 @@ def order_agent(state: ChatState) -> ChatState:
         state["steps"].append("Cancelled pending order")
         return state
 
-    product_id = state.get("active_product_id")
-    if not product_id:
-        state["response"] = "Which product would you like to order?"
-        state["steps"].append("Order missing active_product_id")
-        return state
-
+    extracted = _extract_order_fields(state["message"])
+    extracted["items"] = _extract_mentioned_items(state, extracted.get("quantity"))
     order = _merge_order_data(
         state.get("pending_order_json") or {},
-        _extract_order_fields(state["message"]),
+        extracted,
     )
+
+    product_id = state.get("active_product_id")
+    if not product_id and not order.get("items"):
+        state["response"] = "Which product would you like to order?"
+        state["steps"].append("Order missing product selection")
+        return state
     if state.get("delivery_city"):
         order["customer_info"]["city"] = state["delivery_city"]
     if state.get("delivery_address"):
@@ -235,8 +285,6 @@ def order_agent(state: ChatState) -> ChatState:
     payload = {
         "shop_id": state["shop_id"],
         "session_id": state["session_id"],
-        "product_id": product_id,
-        "quantity": int(order.get("quantity") or 1),
         "customer_info": {
             "name": order["customer_info"]["name"],
             "phone": order["customer_info"]["phone"],
@@ -244,12 +292,19 @@ def order_agent(state: ChatState) -> ChatState:
             "delivery_address": order["customer_info"]["delivery_address"],
         },
     }
+    if order.get("items"):
+        payload["items"] = order["items"]
+    else:
+        payload["product_id"] = product_id
+        payload["quantity"] = int(order.get("quantity") or 1)
 
     response = None
     try:
         backend_response = backend_client.create_order(payload)
         state["pending_order_json"] = None
         state["response"] = backend_response.get("message") or "Your order has been created successfully."
+        if backend_response.get("total_price") is not None:
+            state["response"] = f"{state['response']} Total: {backend_response['total_price']} MAD."
         state["steps"].append("Created order through backend")
     except requests.HTTPError as exc:
         response = exc.response

@@ -120,6 +120,9 @@ class CustomerRouterMatrixTest(unittest.TestCase):
             ("when my order", "order_status", None),
             ("when will my order arrive?", "order_status", None),
             ("order tracking", "order_status", None),
+            ("what is the final price of my order?", "order_status", None),
+            ("what is the final prove of my order?", "order_status", None),
+            ("what is my order total?", "order_status", None),
             ("I have a problem with my order", "complaint", None),
             ("I need support", "human_needed", None),
         ]

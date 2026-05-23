@@ -205,6 +205,12 @@ def _is_order_status_signal(normalized: str) -> bool:
         normalized,
         [
             "order status",
+            "order total",
+            "total of my order",
+            "final price of my order",
+            "final price for my order",
+            "final prove of my order",
+            "price of my order",
             "status of my order",
             "my order status",
             "where is my order",
@@ -230,6 +236,8 @@ def _is_order_status_signal(normalized: str) -> bool:
     return bool(
         re.search(r"\b(?:where|when|track|tracking|status|shipped|delivered|arrived|ready)\b.*\border\b", normalized)
         or re.search(r"\border\b.*\b(?:status|tracking|shipped|delivered|arrived|ready)\b", normalized)
+        or re.search(r"\b(?:final\s+price|final\s+prove|total|price)\b.*\border\b", normalized)
+        or re.search(r"\border\b.*\b(?:final\s+price|final\s+prove|total)\b", normalized)
     )
 
 
