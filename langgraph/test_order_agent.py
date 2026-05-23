@@ -208,3 +208,15 @@ def test_router_classifies_order_creation_keywords_and_fields():
     ]:
         result = deterministic_intent_router(make_state(message))
         assert result["intent"] == "order_creation", message
+
+
+def test_router_classifies_short_order_tracking_questions():
+    for message in [
+        "when my order",
+        "when is my order",
+        "where my order",
+        "when will my order arrive",
+        "order tracking",
+    ]:
+        result = deterministic_intent_router(make_state(message))
+        assert result["intent"] == "order_status", message
