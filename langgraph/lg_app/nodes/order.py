@@ -85,6 +85,7 @@ def _phone_match(message: str) -> re.Match[str] | None:
 def _extract_quantity(message: str) -> int | None:
     patterns = [
         r"\b(?:qty|quantity)\s*:?\s*(\d+)\b",
+        r"\b(?:order|buy|purchase|reserve|get|take|need|want)\s+(?:to\s+)?(?:order|buy|purchase|get|take)?\s*(\d+)\b",
         r"\bx\s*(\d+)\b",
         r"\b(\d+)\s*x\b",
         r"\b(\d+)\s*(?:pieces?|pcs?|units?)\b",
@@ -97,6 +98,12 @@ def _extract_quantity(message: str) -> int | None:
 
     normalized = message.lower()
     for word, quantity in QUANTITY_WORDS.items():
+        if re.search(
+            rf"\b(?:order|buy|purchase|reserve|get|take|need|want)\s+"
+            rf"(?:to\s+)?(?:order|buy|purchase|get|take)?\s*{word}\b",
+            normalized,
+        ):
+            return quantity
         if re.search(rf"\b{word}\s+(?:pieces?|pcs?|units?|items?|stuff|of them|from)\b", normalized):
             return quantity
         if re.search(rf"\b(?:qty|quantity)\s*:?\s*{word}\b", normalized):

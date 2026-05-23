@@ -201,21 +201,35 @@ def _is_order_creation_signal(message: str, normalized: str) -> bool:
 
 def _is_order_status_signal(normalized: str) -> bool:
     """Detect customer requests to read order status."""
-    return _contains_any(
+    if _contains_any(
         normalized,
         [
             "order status",
             "status of my order",
             "my order status",
             "where is my order",
+            "where my order",
+            "when is my order",
+            "when my order",
+            "when will my order",
+            "when order",
+            "where order",
             "track my order",
             "tracking order",
             "is my order confirmed",
             "is my order shipped",
             "is my order delivered",
+            "is my order ready",
+            "has my order arrived",
             "has my order",
             "what happened to my order",
         ],
+    ):
+        return True
+
+    return bool(
+        re.search(r"\b(?:where|when|track|tracking|status|shipped|delivered|arrived|ready)\b.*\border\b", normalized)
+        or re.search(r"\border\b.*\b(?:status|tracking|shipped|delivered|arrived|ready)\b", normalized)
     )
 
 

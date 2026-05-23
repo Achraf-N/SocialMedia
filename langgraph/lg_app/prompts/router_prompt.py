@@ -338,6 +338,10 @@ Then:
 Use when user asks to check, track, or read their order status:
 * order status
 * where is my order
+* where my order
+* when is my order
+* when my order
+* when will my order arrive
 * track my order
 * is my order confirmed
 * is my order shipped

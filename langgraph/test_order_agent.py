@@ -127,6 +127,23 @@ def test_order_agent_extracts_quantity_words(monkeypatch):
     assert calls[0]["quantity"] == 2
 
 
+def test_order_agent_extracts_quantity_before_product_name(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully"}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "I need to order three Hair Oil, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    )
+
+    order_agent(state)
+
+    assert calls[0]["quantity"] == 3
+
+
 def test_product_change_clears_pending_order_quantity():
     state = make_state("tell me about Face Cream")
     state["active_product"] = "Hair Oil"
