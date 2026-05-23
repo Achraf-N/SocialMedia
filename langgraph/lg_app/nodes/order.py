@@ -37,6 +37,18 @@ QUANTITY_WORDS = {
     "nine": 9,
     "ten": 10,
 }
+ORDINAL_WORDS = {
+    "first": 1,
+    "second": 2,
+    "third": 3,
+    "fourth": 4,
+    "fifth": 5,
+    "sixth": 6,
+    "seventh": 7,
+    "eighth": 8,
+    "ninth": 9,
+    "tenth": 10,
+}
 
 
 def _clean(value: str) -> str:
@@ -46,6 +58,26 @@ def _clean(value: str) -> str:
 def _product_id(product: dict[str, Any]) -> str | None:
     value = product.get("id") or product.get("_id")
     return str(value) if value is not None else None
+
+
+def _quantity_from_token(value: str) -> int | None:
+    value = value.lower().strip()
+    if value.isdigit():
+        quantity = int(value)
+        return quantity if quantity > 0 else None
+    return QUANTITY_WORDS.get(value)
+
+
+def _catalog_product_by_position(state: ChatState, position: int) -> dict[str, Any] | None:
+    catalog = state.get("last_catalog_products") or []
+    if position < 1 or position > len(catalog):
+        return None
+
+    product_name = catalog[position - 1]
+    for product in state.get("shop_data") or []:
+        if product.get("name") == product_name:
+            return product
+    return None
 
 
 def _extract_labeled_fields(message: str) -> dict[str, str]:
@@ -126,12 +158,44 @@ def _wants_multiple_distinct_products(message: str) -> bool:
     )
 
 
+def _extract_catalog_position_items(state: ChatState) -> list[dict[str, Any]]:
+    message = state["message"].lower()
+    quantity_pattern = r"\d+|" + "|".join(QUANTITY_WORDS)
+    ordinal_pattern = r"\d+|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth"
+    patterns = [
+        rf"\b>?\s*(?P<qty>{quantity_pattern})\s*(?:items?|pieces?|pcs?|units?)?\s*(?:for|of|on|in|from)?\s*(?:the\s+)?(?:product\s*)?(?P<pos>{ordinal_pattern})(?:st|nd|rd|th)?\s*(?:products?|one)?\b",
+        rf"\b(?:product\s*)?(?P<pos>{ordinal_pattern})(?:st|nd|rd|th)?\s*(?:products?|one)?\s*(?:x|qty|quantity|:|=|for|of|on|in)?\s*>?\s*(?P<qty>{quantity_pattern})\b",
+    ]
+    items_by_id: dict[str, dict[str, Any]] = {}
+    for pattern in patterns:
+        for match in re.finditer(pattern, message):
+            quantity = _quantity_from_token(match.group("qty"))
+            pos_value = match.group("pos")
+            position = int(pos_value) if pos_value.isdigit() else ORDINAL_WORDS.get(pos_value)
+            if not quantity or not position:
+                continue
+
+            product = _catalog_product_by_position(state, position)
+            if not product:
+                continue
+            product_id = _product_id(product)
+            if not product_id:
+                continue
+            items_by_id[product_id] = {"product_id": product_id, "quantity": quantity}
+
+    return list(items_by_id.values())
+
+
 def _extract_mentioned_items(state: ChatState, quantity: int | None) -> list[dict[str, Any]]:
     """Build order items from explicitly mentioned products or recent catalog references."""
     message = state["message"].lower()
     products = state.get("shop_data") or []
     items: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
+
+    catalog_position_items = _extract_catalog_position_items(state)
+    if len(catalog_position_items) > 1:
+        return catalog_position_items
 
     for product in products:
         product_id = _product_id(product)

@@ -224,6 +224,57 @@ def test_order_agent_asks_when_different_products_are_not_identified(monkeypatch
     assert result["response"] == "Which 2 products would you like to order?"
 
 
+def test_order_agent_handles_catalog_position_quantities_across_details_turn(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 798}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state("I need to order two items for the first product and >5 on product 2")
+    state["last_catalog_products"] = ["Hair Oil", "Face Cream"]
+
+    pending = order_agent(state)
+
+    assert calls == []
+    assert pending["pending_order_json"]["items"] == [
+        {"product_id": "prod-123", "quantity": 2},
+        {"product_id": "prod-456", "quantity": 5},
+    ]
+    assert pending["response"] == "Please send name, phone, city, delivery address."
+
+    pending["message"] = "name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    created = order_agent(pending)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-123", "quantity": 2},
+        {"product_id": "prod-456", "quantity": 5},
+    ]
+    assert "Total: 798 MAD" in created["response"]
+
+
+def test_order_agent_handles_product_number_quantities_with_in_preposition(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 339}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "i need to order 1 product 1 and 2 in product 2, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    )
+    state["last_catalog_products"] = ["Hair Oil", "Face Cream"]
+
+    order_agent(state)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-123", "quantity": 1},
+        {"product_id": "prod-456", "quantity": 2},
+    ]
+
+
 def test_product_change_clears_pending_order_quantity():
     state = make_state("tell me about Face Cream")
     state["active_product"] = "Hair Oil"
