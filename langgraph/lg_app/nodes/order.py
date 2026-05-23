@@ -116,6 +116,16 @@ def _extract_quantity(message: str) -> int | None:
     return None
 
 
+def _wants_multiple_distinct_products(message: str) -> bool:
+    normalized = message.lower()
+    quantity_word_pattern = "|".join(QUANTITY_WORDS)
+    return bool(
+        re.search(rf"\b(?:\d+|{quantity_word_pattern})\s+different\s+products?\b", normalized)
+        or re.search(rf"\b(?:these|those|the|first|both)\s+(?:\d+|{quantity_word_pattern})?\s*(?:different\s+)?products?\b", normalized)
+        or re.search(r"\b(?:all|both)\s+(?:of\s+)?(?:them|these|those|products?)\b", normalized)
+    )
+
+
 def _extract_mentioned_items(state: ChatState, quantity: int | None) -> list[dict[str, Any]]:
     """Build order items from explicitly mentioned products or recent catalog references."""
     message = state["message"].lower()
@@ -136,9 +146,12 @@ def _extract_mentioned_items(state: ChatState, quantity: int | None) -> list[dic
     catalog_count = quantity or len(catalog)
     references_catalog = (
         bool(catalog)
-        and re.search(
-            r"\b(?:these|those|all|the)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)?\s*products?\b",
-            message,
+        and (
+            _wants_multiple_distinct_products(message)
+            or re.search(
+                r"\b(?:these|those|all|the|first|both)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)?\s*(?:different\s+)?products?\b",
+                message,
+            )
         )
     )
     if references_catalog:
@@ -266,6 +279,14 @@ def order_agent(state: ChatState) -> ChatState:
     )
 
     product_id = state.get("active_product_id")
+    wants_distinct_products = _wants_multiple_distinct_products(state["message"])
+    if wants_distinct_products and not order.get("items"):
+        state["pending_order_json"] = order
+        quantity = int(order.get("quantity") or 2)
+        state["response"] = f"Which {quantity} products would you like to order?"
+        state["steps"].append("Order missing multiple product selection")
+        return state
+
     if not product_id and not order.get("items"):
         state["response"] = "Which product would you like to order?"
         state["steps"].append("Order missing product selection")

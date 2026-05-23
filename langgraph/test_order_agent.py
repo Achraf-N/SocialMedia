@@ -187,6 +187,43 @@ def test_order_agent_uses_last_catalog_for_these_three_products(monkeypatch):
     ]
 
 
+def test_order_agent_uses_last_catalog_for_two_different_products(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 219}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "I want to order two different products, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    )
+    state["last_catalog_products"] = ["Hair Oil", "Face Cream"]
+
+    order_agent(state)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-123", "quantity": 1},
+        {"product_id": "prod-456", "quantity": 1},
+    ]
+
+
+def test_order_agent_asks_when_different_products_are_not_identified(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully"}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state("I want to order two different products")
+
+    result = order_agent(state)
+
+    assert calls == []
+    assert result["response"] == "Which 2 products would you like to order?"
+
+
 def test_product_change_clears_pending_order_quantity():
     state = make_state("tell me about Face Cream")
     state["active_product"] = "Hair Oil"
