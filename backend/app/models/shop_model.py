@@ -18,6 +18,7 @@ class ShopResponse(BaseModel):
     owner_id: str
     name: str
     delivery: str
+    logo_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -27,5 +28,6 @@ class ShopPublicResponse(BaseModel):
     name: str
     delivery: str
     payment: str | None = None
+    logo_url: str | None = None
     created_at: datetime
     updated_at: datetime
