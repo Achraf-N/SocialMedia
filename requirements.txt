@@ -11,3 +11,5 @@ flask-cors
 ollama
 pymongo
 python-multipart
+pandas
+openpyxl
