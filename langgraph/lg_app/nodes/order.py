@@ -331,6 +331,39 @@ def _missing_message(missing: list[str]) -> str:
     return "Please send " + ", ".join(labels[field] for field in missing) + "."
 
 
+def _is_yes(message: str) -> bool:
+    return bool(re.search(r"\b(yes|yeah|yep|correct|right|ok|okay|confirm|confirmed|sure|oui|ah|iwa)\b", message, re.IGNORECASE))
+
+
+def _is_no(message: str) -> bool:
+    return bool(re.search(r"\b(no|nope|not correct|wrong|change|different|la|non)\b", message, re.IGNORECASE))
+
+
+def _latest_session_customer_info(state: ChatState) -> dict[str, str] | None:
+    try:
+        data = backend_client.get_orders_by_session(state["shop_id"], state["session_id"])
+    except Exception:
+        return None
+
+    orders = data.get("orders", []) if isinstance(data, dict) else data
+    if not orders:
+        return None
+
+    customer_info = orders[0].get("customer_info") or {}
+    if _missing_customer_fields(customer_info):
+        return None
+    return {field: customer_info[field] for field in CUSTOMER_FIELDS}
+
+
+def _customer_info_confirmation_message(customer_info: dict[str, str]) -> str:
+    return (
+        "I found your previous delivery details: "
+        f"name {customer_info['name']}, phone {customer_info['phone']}, "
+        f"city {customer_info['city']}, address {customer_info['delivery_address']}. "
+        "Is this still correct?"
+    )
+
+
 def _order_error(response: requests.Response | None, exc: Exception) -> str:
     if response is None:
         return "The order service is not reachable right now."
@@ -357,6 +390,29 @@ def order_agent(state: ChatState) -> ChatState:
         state["response"] = "No problem, I cancelled the pending order details."
         state["steps"].append("Cancelled pending order")
         return state
+
+    pending_order = state.get("pending_order_json") or {}
+    if pending_order.get("confirm_customer_info"):
+        if _is_no(state["message"]):
+            pending_order["customer_info"] = {}
+            pending_order.pop("confirm_customer_info", None)
+            pending_order["customer_info_declined"] = True
+            state["pending_order_json"] = pending_order
+            state["response"] = _missing_message(list(CUSTOMER_FIELDS))
+            state["steps"].append("Previous customer info declined")
+            return state
+
+        extracted_for_confirmation = _extract_order_fields(state["message"])
+        if any(extracted_for_confirmation.get("customer_info", {}).values()):
+            pending_order.pop("confirm_customer_info", None)
+        elif _is_yes(state["message"]):
+            pending_order.pop("confirm_customer_info", None)
+            state["pending_order_json"] = pending_order
+        else:
+            state["pending_order_json"] = pending_order
+            state["response"] = _customer_info_confirmation_message(pending_order["customer_info"])
+            state["steps"].append("Awaiting previous customer info confirmation")
+            return state
 
     extracted = _extract_order_fields(state["message"])
     extracted["items"] = _extract_mentioned_items(state, extracted.get("quantity"))
@@ -385,6 +441,16 @@ def order_agent(state: ChatState) -> ChatState:
 
     missing = _missing_customer_fields(order["customer_info"])
     if missing:
+        if not order.get("customer_info_declined"):
+            previous_customer_info = _latest_session_customer_info(state)
+            if previous_customer_info:
+                order["customer_info"] = previous_customer_info
+                order["confirm_customer_info"] = True
+                state["pending_order_json"] = order
+                state["response"] = _customer_info_confirmation_message(previous_customer_info)
+                state["steps"].append("Asked to confirm previous customer info")
+                return state
+
         state["pending_order_json"] = order
         state["response"] = _missing_message(missing)
         state["steps"].append(f"Order pending missing fields: {', '.join(missing)}")

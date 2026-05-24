@@ -312,6 +312,84 @@ def test_order_agent_handles_partial_product_names_with_quantities(monkeypatch):
     ]
 
 
+def test_order_agent_reuses_previous_customer_info_after_confirmation(monkeypatch):
+    create_calls = []
+
+    def fake_get_orders(shop_id, session_id):
+        return {
+            "orders": [
+                {
+                    "customer_info": {
+                        "name": "tom",
+                        "phone": "0661612345",
+                        "city": "rabat",
+                        "delivery_address": "rabat ville",
+                    }
+                }
+            ]
+        }
+
+    def fake_create_order(payload):
+        create_calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 99}
+
+    monkeypatch.setattr("lg_app.backend_client.get_orders_by_session", fake_get_orders)
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+
+    state = make_state("I want to order Hair Oil")
+    confirm = order_agent(state)
+
+    assert create_calls == []
+    assert confirm["pending_order_json"]["confirm_customer_info"] is True
+    assert "Is this still correct?" in confirm["response"]
+
+    confirm["message"] = "yes"
+    created = order_agent(confirm)
+
+    assert create_calls[0]["customer_info"] == {
+        "name": "tom",
+        "phone": "0661612345",
+        "city": "rabat",
+        "delivery_address": "rabat ville",
+    }
+    assert create_calls[0]["product_id"] == "prod-123"
+    assert "Total: 99 MAD" in created["response"]
+
+
+def test_order_agent_asks_for_details_when_previous_customer_info_declined(monkeypatch):
+    create_calls = []
+
+    def fake_get_orders(shop_id, session_id):
+        return {
+            "orders": [
+                {
+                    "customer_info": {
+                        "name": "tom",
+                        "phone": "0661612345",
+                        "city": "rabat",
+                        "delivery_address": "rabat ville",
+                    }
+                }
+            ]
+        }
+
+    def fake_create_order(payload):
+        create_calls.append(payload)
+        return {"message": "Order created successfully"}
+
+    monkeypatch.setattr("lg_app.backend_client.get_orders_by_session", fake_get_orders)
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+
+    state = make_state("I want to order Hair Oil")
+    confirm = order_agent(state)
+    confirm["message"] = "no"
+    declined = order_agent(confirm)
+
+    assert create_calls == []
+    assert declined["response"] == "Please send name, phone, city, delivery address."
+    assert declined["pending_order_json"]["customer_info_declined"] is True
+
+
 def test_product_change_clears_pending_order_quantity():
     state = make_state("tell me about Face Cream")
     state["active_product"] = "Hair Oil"

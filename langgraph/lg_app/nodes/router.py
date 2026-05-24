@@ -557,6 +557,11 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         )
 
     is_cash_on_delivery = "cash on delivery" in msg_lower
+    pending_order = state.get("pending_order_json") or {}
+    is_pending_confirmation_reply = bool(pending_order.get("confirm_customer_info")) and _contains_word(
+        msg_norm,
+        ["yes", "yeah", "yep", "correct", "right", "ok", "okay", "confirm", "confirmed", "sure", "no", "nope", "wrong", "change", "different", "la", "non"],
+    )
 
     if is_shop_info_request:
         router_result["intent"] = "shop_info_question"
@@ -572,6 +577,9 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
     elif _contains_word(msg_norm, greeting_terms):
         router_result["intent"] = "greeting"
         router_result["product_query"] = None
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
+    elif is_pending_confirmation_reply:
+        router_result["intent"] = "order_creation"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif _contains_word(msg_norm, small_talk_terms):
         router_result["intent"] = "small_talk"

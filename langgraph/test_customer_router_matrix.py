@@ -154,6 +154,20 @@ class CustomerRouterMatrixTest(unittest.TestCase):
             "Adidas Samba OG0",
             pending_order_json=pending,
         )
+
+    def test_pending_customer_info_confirmation_routes_yes_no_to_order_creation(self):
+        pending = {
+            "quantity": 1,
+            "customer_info": {
+                "name": "achraf",
+                "phone": "0660606060",
+                "city": "Rabat",
+                "delivery_address": "rabat ville",
+            },
+            "confirm_customer_info": True,
+        }
+        self.assert_route("yes", "order_creation", None, pending_order_json=pending)
+        self.assert_route("no", "order_creation", None, pending_order_json=pending)
         self.assert_route(
             "when my order",
             "order_status",
