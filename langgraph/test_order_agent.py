@@ -127,6 +127,269 @@ def test_order_agent_extracts_quantity_words(monkeypatch):
     assert calls[0]["quantity"] == 2
 
 
+def test_order_agent_extracts_quantity_before_product_name(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully"}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "I need to order three Hair Oil, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    )
+
+    order_agent(state)
+
+    assert calls[0]["quantity"] == 3
+
+
+def test_order_agent_calls_backend_with_multiple_items(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 219}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "I want to order Hair Oil and Face Cream, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    )
+
+    result = order_agent(state)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-123", "quantity": 1},
+        {"product_id": "prod-456", "quantity": 1},
+    ]
+    assert "product_id" not in calls[0]
+    assert "Total: 219 MAD" in result["response"]
+
+
+def test_order_agent_uses_last_catalog_for_these_three_products(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 339}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "I want to order these 2 products, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    )
+    state["last_catalog_products"] = ["Hair Oil", "Face Cream"]
+
+    order_agent(state)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-123", "quantity": 1},
+        {"product_id": "prod-456", "quantity": 1},
+    ]
+
+
+def test_order_agent_uses_last_catalog_for_two_different_products(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 219}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "I want to order two different products, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    )
+    state["last_catalog_products"] = ["Hair Oil", "Face Cream"]
+
+    order_agent(state)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-123", "quantity": 1},
+        {"product_id": "prod-456", "quantity": 1},
+    ]
+
+
+def test_order_agent_asks_when_different_products_are_not_identified(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully"}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state("I want to order two different products")
+
+    result = order_agent(state)
+
+    assert calls == []
+    assert result["response"] == "Which 2 products would you like to order?"
+
+
+def test_order_agent_handles_catalog_position_quantities_across_details_turn(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 798}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state("I need to order two items for the first product and >5 on product 2")
+    state["last_catalog_products"] = ["Hair Oil", "Face Cream"]
+
+    pending = order_agent(state)
+
+    assert calls == []
+    assert pending["pending_order_json"]["items"] == [
+        {"product_id": "prod-123", "quantity": 2},
+        {"product_id": "prod-456", "quantity": 5},
+    ]
+    assert pending["response"] == "Please send name, phone, city, delivery address."
+
+    pending["message"] = "name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    created = order_agent(pending)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-123", "quantity": 2},
+        {"product_id": "prod-456", "quantity": 5},
+    ]
+    assert "Total: 798 MAD" in created["response"]
+
+
+def test_order_agent_handles_product_number_quantities_with_in_preposition(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 339}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "i need to order 1 product 1 and 2 in product 2, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville"
+    )
+    state["last_catalog_products"] = ["Hair Oil", "Face Cream"]
+
+    order_agent(state)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-123", "quantity": 1},
+        {"product_id": "prod-456", "quantity": 2},
+    ]
+
+
+def test_order_agent_handles_partial_product_names_with_quantities(monkeypatch):
+    calls = []
+
+    def fake_create_order(payload):
+        calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 3000}
+
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+    state = make_state(
+        "i need to order two mac and one apple, name: tom, phone: 0661612345, city: rabat, delivery address: rabat ville",
+        active_product_id=None,
+    )
+    state["shop_data"] = [
+        {
+            "id": "prod-mac",
+            "name": "MacBook Pro",
+            "price": 1000,
+            "available": True,
+            "stock": 4,
+        },
+        {
+            "id": "prod-apple",
+            "name": "Apple Watch",
+            "price": 1000,
+            "available": True,
+            "stock": 4,
+        },
+    ]
+
+    order_agent(state)
+
+    assert calls[0]["items"] == [
+        {"product_id": "prod-mac", "quantity": 2},
+        {"product_id": "prod-apple", "quantity": 1},
+    ]
+
+
+def test_order_agent_reuses_previous_customer_info_after_confirmation(monkeypatch):
+    create_calls = []
+
+    def fake_get_orders(shop_id, session_id):
+        return {
+            "orders": [
+                {
+                    "customer_info": {
+                        "name": "tom",
+                        "phone": "0661612345",
+                        "city": "rabat",
+                        "delivery_address": "rabat ville",
+                    }
+                }
+            ]
+        }
+
+    def fake_create_order(payload):
+        create_calls.append(payload)
+        return {"message": "Order created successfully", "total_price": 99}
+
+    monkeypatch.setattr("lg_app.backend_client.get_orders_by_session", fake_get_orders)
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+
+    state = make_state("I want to order Hair Oil")
+    confirm = order_agent(state)
+
+    assert create_calls == []
+    assert confirm["pending_order_json"]["confirm_customer_info"] is True
+    assert "Is this still correct?" in confirm["response"]
+
+    confirm["message"] = "yes"
+    created = order_agent(confirm)
+
+    assert create_calls[0]["customer_info"] == {
+        "name": "tom",
+        "phone": "0661612345",
+        "city": "rabat",
+        "delivery_address": "rabat ville",
+    }
+    assert create_calls[0]["product_id"] == "prod-123"
+    assert "Total: 99 MAD" in created["response"]
+
+
+def test_order_agent_asks_for_details_when_previous_customer_info_declined(monkeypatch):
+    create_calls = []
+
+    def fake_get_orders(shop_id, session_id):
+        return {
+            "orders": [
+                {
+                    "customer_info": {
+                        "name": "tom",
+                        "phone": "0661612345",
+                        "city": "rabat",
+                        "delivery_address": "rabat ville",
+                    }
+                }
+            ]
+        }
+
+    def fake_create_order(payload):
+        create_calls.append(payload)
+        return {"message": "Order created successfully"}
+
+    monkeypatch.setattr("lg_app.backend_client.get_orders_by_session", fake_get_orders)
+    monkeypatch.setattr("lg_app.backend_client.create_order", fake_create_order)
+
+    state = make_state("I want to order Hair Oil")
+    confirm = order_agent(state)
+    confirm["message"] = "no"
+    declined = order_agent(confirm)
+
+    assert create_calls == []
+    assert declined["response"] == "Please send name, phone, city, delivery address."
+    assert declined["pending_order_json"]["customer_info_declined"] is True
+
+
 def test_product_change_clears_pending_order_quantity():
     state = make_state("tell me about Face Cream")
     state["active_product"] = "Hair Oil"
@@ -191,3 +454,18 @@ def test_router_classifies_order_creation_keywords_and_fields():
     ]:
         result = deterministic_intent_router(make_state(message))
         assert result["intent"] == "order_creation", message
+
+
+def test_router_classifies_short_order_tracking_questions():
+    for message in [
+        "when my order",
+        "when is my order",
+        "where my order",
+        "when will my order arrive",
+        "order tracking",
+        "what is the final price of my order",
+        "give me more details about order",
+        "give me more details about my order",
+    ]:
+        result = deterministic_intent_router(make_state(message))
+        assert result["intent"] == "order_status", message

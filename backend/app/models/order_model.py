@@ -27,11 +27,12 @@ class OrderCreate(BaseModel):
 
 
 class PublicOrderCreate(BaseModel):
-    """Single-product order format used by the LangGraph chatbot."""
+    """Order format used by the LangGraph chatbot."""
     shop_id: str | None = None
     session_id: str | None = None
-    product_id: str = Field(min_length=1)
+    product_id: str | None = Field(default=None, min_length=1)
     quantity: int = Field(default=1, ge=1)
+    items: list[OrderItemCreate] | None = None
     customer_info: CustomerInfoCreate | None = None
     customer_name: str | None = Field(default=None, min_length=1, max_length=160)
     customer_phone: str | None = Field(default=None, min_length=1, max_length=40)

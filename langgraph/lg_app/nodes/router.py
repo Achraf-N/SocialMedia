@@ -201,21 +201,51 @@ def _is_order_creation_signal(message: str, normalized: str) -> bool:
 
 def _is_order_status_signal(normalized: str) -> bool:
     """Detect customer requests to read order status."""
-    return _contains_any(
+    if _contains_any(
         normalized,
         [
             "order status",
+            "order total",
+            "order details",
+            "details about order",
+            "details of my order",
+            "details for my order",
+            "more details about order",
+            "more details of my order",
+            "total of my order",
+            "final price of my order",
+            "final price for my order",
+            "final prove of my order",
+            "price of my order",
             "status of my order",
             "my order status",
             "where is my order",
+            "where my order",
+            "when is my order",
+            "when my order",
+            "when will my order",
+            "when order",
+            "where order",
             "track my order",
             "tracking order",
             "is my order confirmed",
             "is my order shipped",
             "is my order delivered",
+            "is my order ready",
+            "has my order arrived",
             "has my order",
             "what happened to my order",
         ],
+    ):
+        return True
+
+    return bool(
+        re.search(r"\b(?:where|when|track|tracking|status|shipped|delivered|arrived|ready)\b.*\border\b", normalized)
+        or re.search(r"\border\b.*\b(?:status|tracking|shipped|delivered|arrived|ready)\b", normalized)
+        or re.search(r"\b(?:details|detail|info|information)\b.*\border\b", normalized)
+        or re.search(r"\border\b.*\b(?:details|detail|info|information)\b", normalized)
+        or re.search(r"\b(?:final\s+price|final\s+prove|total|price)\b.*\border\b", normalized)
+        or re.search(r"\border\b.*\b(?:final\s+price|final\s+prove|total)\b", normalized)
     )
 
 
@@ -511,6 +541,8 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         "la",
         "non",
     ]
+    complaint_terms = ["refund", "problem", "angry", "late", "bad", "issue"]
+    human_terms = ["support", "talk to human", "human", "owner"]
 
     if indexed_product:
         router_result["product_query"] = indexed_product
@@ -525,6 +557,11 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         )
 
     is_cash_on_delivery = "cash on delivery" in msg_lower
+    pending_order = state.get("pending_order_json") or {}
+    is_pending_confirmation_reply = bool(pending_order.get("confirm_customer_info")) and _contains_word(
+        msg_norm,
+        ["yes", "yeah", "yep", "correct", "right", "ok", "okay", "confirm", "confirmed", "sure", "no", "nope", "wrong", "change", "different", "la", "non"],
+    )
 
     if is_shop_info_request:
         router_result["intent"] = "shop_info_question"
@@ -541,6 +578,9 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         router_result["intent"] = "greeting"
         router_result["product_query"] = None
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
+    elif is_pending_confirmation_reply:
+        router_result["intent"] = "order_creation"
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif _contains_word(msg_norm, small_talk_terms):
         router_result["intent"] = "small_talk"
         router_result["product_query"] = None
@@ -548,6 +588,16 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
     elif _is_order_status_signal(msg_norm):
         router_result["intent"] = "order_status"
         router_result["product_query"] = None
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
+    elif _contains_word(msg_norm, complaint_terms):
+        router_result["intent"] = "complaint"
+        router_result["product_query"] = None
+        router_result["needs_human"] = True
+        router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
+    elif _contains_any(msg_norm, human_terms):
+        router_result["intent"] = "human_needed"
+        router_result["product_query"] = None
+        router_result["needs_human"] = True
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif state.get("pending_order_json") and _is_pending_order_field_reply(
         msg_norm,
@@ -560,9 +610,16 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif _contains_any(msg_norm, delivery_terms) and not is_cash_on_delivery:
         router_result["intent"] = "delivery_question"
+        has_product_context = _contains_any(
+            msg_lower,
+            [" it", "this", "that product", "same one", "this one", "had", "hada", "hadi"],
+        )
+        if not explicit_product:
+            router_result["product_query"] = active_product if active_product and has_product_context else None
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif _contains_any(msg_norm, payment_terms):
         router_result["intent"] = "payment_question"
+        router_result["product_query"] = None
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.95)
     elif _contains_any(msg_norm, price_terms):
         router_result["intent"] = "price_question"
@@ -577,12 +634,21 @@ def _apply_sales_priority(state: ChatState, router_result: dict) -> dict:
         router_result["intent"] = "product_info_question"
         router_result["confidence"] = max(router_result.get("confidence", 0.0), 0.9)
 
-    if not router_result.get("product_query") and active_product and not is_shop_info_request and not is_catalog_request:
+    if (
+        not router_result.get("product_query")
+        and active_product
+        and not is_shop_info_request
+        and not is_catalog_request
+        and router_result.get("intent") not in {"delivery_question", "payment_question", "order_status", "complaint", "human_needed"}
+    ):
         uses_context = _contains_any(
             msg_lower,
-            [" it", "this", "that product", "same one", "this one", "how much", "price", "available", "stock", "deliver", "brand", "had", "hada", "hadi"],
+            [" it", "this", "that product", "same one", "this one", "how much", "price", "available", "stock", "brand", "had", "hada", "hadi"],
         )
-        uses_context = uses_context or _contains_any(msg_norm, ["livraison", "katsifto", "tsifto", "sifto"])
+        uses_context = uses_context or (
+            _contains_any(msg_norm, ["livraison", "katsifto", "tsifto", "sifto"])
+            and _contains_any(msg_norm, ["it", "this", "had", "hada", "hadi"])
+        )
         if uses_context:
             router_result["product_query"] = active_product
 
@@ -738,6 +804,19 @@ def deterministic_intent_router(state: ChatState) -> dict:
         result["product_query"] = None
         result["confidence"] = 0.95
 
+    # Complaint and support messages can mention "order" without starting a new order.
+    elif _contains_word(msg_lower, ["refund", "problem", "angry", "late", "bad", "issue"]):
+        result["intent"] = "complaint"
+        result["product_query"] = None
+        result["needs_human"] = True
+        result["confidence"] = 0.95
+
+    elif _contains_any(msg_lower, ["support", "talk to human", "human", "owner"]):
+        result["intent"] = "human_needed"
+        result["product_query"] = None
+        result["needs_human"] = True
+        result["confidence"] = 0.95
+
     # Order creation field replies should not be routed as delivery questions.
     elif _is_order_creation_signal(state["message"], msg_norm):
         result["intent"] = "order_creation"
@@ -810,18 +889,6 @@ def deterministic_intent_router(state: ChatState) -> dict:
         if product:
             result["product_query"] = product["name"]
         result["confidence"] = 0.9
-    
-    # Complaint patterns
-    elif _contains_word(msg_lower, ["refund", "problem", "angry", "late", "bad", "issue"]):
-        result["intent"] = "complaint"
-        result["needs_human"] = True
-        result["confidence"] = 0.95
-    
-    # Human needed patterns
-    elif _contains_word(msg_lower, ["support"]) or "order not arrived" in msg_lower:
-        result["intent"] = "human_needed"
-        result["needs_human"] = True
-        result["confidence"] = 0.95
     
     return result
 

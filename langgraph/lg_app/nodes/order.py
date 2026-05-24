@@ -37,10 +37,59 @@ QUANTITY_WORDS = {
     "nine": 9,
     "ten": 10,
 }
+ORDINAL_WORDS = {
+    "first": 1,
+    "second": 2,
+    "third": 3,
+    "fourth": 4,
+    "fifth": 5,
+    "sixth": 6,
+    "seventh": 7,
+    "eighth": 8,
+    "ninth": 9,
+    "tenth": 10,
+}
 
 
 def _clean(value: str) -> str:
     return value.strip(" \t\r\n.,;!?")
+
+
+def _product_id(product: dict[str, Any]) -> str | None:
+    value = product.get("id") or product.get("_id")
+    return str(value) if value is not None else None
+
+
+def _quantity_from_token(value: str) -> int | None:
+    value = value.lower().strip()
+    if value.isdigit():
+        quantity = int(value)
+        return quantity if quantity > 0 else None
+    return QUANTITY_WORDS.get(value)
+
+
+def _catalog_product_by_position(state: ChatState, position: int) -> dict[str, Any] | None:
+    catalog = state.get("last_catalog_products") or []
+    if position < 1 or position > len(catalog):
+        return None
+
+    product_name = catalog[position - 1]
+    for product in state.get("shop_data") or []:
+        if product.get("name") == product_name:
+            return product
+    return None
+
+
+def _product_aliases(product: dict[str, Any]) -> list[str]:
+    name = str(product.get("name") or "").lower()
+    aliases = {name}
+    tokens = re.findall(r"[a-z0-9]+", name)
+    for token in tokens:
+        if len(token) >= 4:
+            aliases.add(token)
+        if len(token) >= 5:
+            aliases.add(token[:3])
+    return sorted((alias for alias in aliases if alias), key=len, reverse=True)
 
 
 def _extract_labeled_fields(message: str) -> dict[str, str]:
@@ -85,9 +134,10 @@ def _phone_match(message: str) -> re.Match[str] | None:
 def _extract_quantity(message: str) -> int | None:
     patterns = [
         r"\b(?:qty|quantity)\s*:?\s*(\d+)\b",
+        r"\b(?:order|buy|purchase|reserve|get|take|need|want)\s+(?:to\s+)?(?:order|buy|purchase|get|take)?\s*(\d+)\b",
         r"\bx\s*(\d+)\b",
         r"\b(\d+)\s*x\b",
-        r"\b(\d+)\s*(?:pieces?|pcs?|units?)\b",
+        r"\b(\d+)\s*(?:pieces?|pcs?|units?|products?|items?)\b",
     ]
     for pattern in patterns:
         match = re.search(pattern, message, re.IGNORECASE)
@@ -97,11 +147,114 @@ def _extract_quantity(message: str) -> int | None:
 
     normalized = message.lower()
     for word, quantity in QUANTITY_WORDS.items():
-        if re.search(rf"\b{word}\s+(?:pieces?|pcs?|units?|items?|stuff|of them|from)\b", normalized):
+        if re.search(
+            rf"\b(?:order|buy|purchase|reserve|get|take|need|want)\s+"
+            rf"(?:to\s+)?(?:order|buy|purchase|get|take)?\s*{word}\b",
+            normalized,
+        ):
+            return quantity
+        if re.search(rf"\b{word}\s+(?:pieces?|pcs?|units?|products?|items?|stuff|of them|from)\b", normalized):
             return quantity
         if re.search(rf"\b(?:qty|quantity)\s*:?\s*{word}\b", normalized):
             return quantity
     return None
+
+
+def _wants_multiple_distinct_products(message: str) -> bool:
+    normalized = message.lower()
+    quantity_word_pattern = "|".join(QUANTITY_WORDS)
+    return bool(
+        re.search(rf"\b(?:\d+|{quantity_word_pattern})\s+different\s+products?\b", normalized)
+        or re.search(rf"\b(?:these|those|the|first|both)\s+(?:\d+|{quantity_word_pattern})?\s*(?:different\s+)?products?\b", normalized)
+        or re.search(r"\b(?:all|both)\s+(?:of\s+)?(?:them|these|those|products?)\b", normalized)
+    )
+
+
+def _extract_catalog_position_items(state: ChatState) -> list[dict[str, Any]]:
+    message = state["message"].lower()
+    quantity_pattern = r"\d+|" + "|".join(QUANTITY_WORDS)
+    ordinal_pattern = r"\d+|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth"
+    patterns = [
+        rf"\b>?\s*(?P<qty>{quantity_pattern})\s*(?:items?|pieces?|pcs?|units?)?\s*(?:for|of|on|in|from)?\s*(?:the\s+)?(?:product\s*)?(?P<pos>{ordinal_pattern})(?:st|nd|rd|th)?\s*(?:products?|one)?\b",
+        rf"\b(?:product\s*)?(?P<pos>{ordinal_pattern})(?:st|nd|rd|th)?\s*(?:products?|one)?\s*(?:x|qty|quantity|:|=|for|of|on|in)?\s*>?\s*(?P<qty>{quantity_pattern})\b",
+    ]
+    items_by_id: dict[str, dict[str, Any]] = {}
+    for pattern in patterns:
+        for match in re.finditer(pattern, message):
+            quantity = _quantity_from_token(match.group("qty"))
+            pos_value = match.group("pos")
+            position = int(pos_value) if pos_value.isdigit() else ORDINAL_WORDS.get(pos_value)
+            if not quantity or not position:
+                continue
+
+            product = _catalog_product_by_position(state, position)
+            if not product:
+                continue
+            product_id = _product_id(product)
+            if not product_id:
+                continue
+            items_by_id[product_id] = {"product_id": product_id, "quantity": quantity}
+
+    return list(items_by_id.values())
+
+
+def _extract_mentioned_items(state: ChatState, quantity: int | None) -> list[dict[str, Any]]:
+    """Build order items from explicitly mentioned products or recent catalog references."""
+    message = state["message"].lower()
+    products = state.get("shop_data") or []
+    items: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+
+    catalog_position_items = _extract_catalog_position_items(state)
+    if len(catalog_position_items) > 1:
+        return catalog_position_items
+
+    quantity_pattern = r"\d+|" + "|".join(QUANTITY_WORDS)
+    for product in products:
+        product_id = _product_id(product)
+        product_name = str(product.get("name") or "")
+        if not product_id or not product_name:
+            continue
+        for alias in _product_aliases(product):
+            match = re.search(
+                rf"\b(?:(?P<qty>{quantity_pattern})\s+)?{re.escape(alias)}\b",
+                message,
+            )
+            if match and product_id not in seen_ids:
+                item_quantity = _quantity_from_token(match.group("qty") or "1") or 1
+                items.append({"product_id": product_id, "quantity": item_quantity})
+                seen_ids.add(product_id)
+                break
+        if product_name.lower() in message and product_id not in seen_ids:
+            items.append({"product_id": product_id, "quantity": 1})
+            seen_ids.add(product_id)
+
+    catalog = state.get("last_catalog_products") or []
+    catalog_count = quantity or len(catalog)
+    references_catalog = (
+        bool(catalog)
+        and (
+            _wants_multiple_distinct_products(message)
+            or re.search(
+                r"\b(?:these|those|all|the|first|both)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)?\s*(?:different\s+)?products?\b",
+                message,
+            )
+        )
+    )
+    if references_catalog:
+        products_by_name = {str(product.get("name")): product for product in products}
+        for product_name in catalog[:catalog_count]:
+            product = products_by_name.get(product_name)
+            if not product:
+                continue
+            product_id = _product_id(product)
+            if product_id and product_id not in seen_ids:
+                items.append({"product_id": product_id, "quantity": 1})
+                seen_ids.add(product_id)
+
+    if len(items) > 1:
+        return items
+    return []
 
 
 def _extract_order_fields(message: str) -> dict[str, Any]:
@@ -159,6 +312,8 @@ def _merge_order_data(order: dict[str, Any], extracted: dict[str, Any]) -> dict[
         merged["quantity"] = extracted["quantity"]
     else:
         merged.setdefault("quantity", 1)
+    if extracted.get("items"):
+        merged["items"] = extracted["items"]
     return merged
 
 
@@ -174,6 +329,39 @@ def _missing_message(missing: list[str]) -> str:
         "delivery_address": "delivery address",
     }
     return "Please send " + ", ".join(labels[field] for field in missing) + "."
+
+
+def _is_yes(message: str) -> bool:
+    return bool(re.search(r"\b(yes|yeah|yep|correct|right|ok|okay|confirm|confirmed|sure|oui|ah|iwa)\b", message, re.IGNORECASE))
+
+
+def _is_no(message: str) -> bool:
+    return bool(re.search(r"\b(no|nope|not correct|wrong|change|different|la|non)\b", message, re.IGNORECASE))
+
+
+def _latest_session_customer_info(state: ChatState) -> dict[str, str] | None:
+    try:
+        data = backend_client.get_orders_by_session(state["shop_id"], state["session_id"])
+    except Exception:
+        return None
+
+    orders = data.get("orders", []) if isinstance(data, dict) else data
+    if not orders:
+        return None
+
+    customer_info = orders[0].get("customer_info") or {}
+    if _missing_customer_fields(customer_info):
+        return None
+    return {field: customer_info[field] for field in CUSTOMER_FIELDS}
+
+
+def _customer_info_confirmation_message(customer_info: dict[str, str]) -> str:
+    return (
+        "I found your previous delivery details: "
+        f"name {customer_info['name']}, phone {customer_info['phone']}, "
+        f"city {customer_info['city']}, address {customer_info['delivery_address']}. "
+        "Is this still correct?"
+    )
 
 
 def _order_error(response: requests.Response | None, exc: Exception) -> str:
@@ -203,16 +391,49 @@ def order_agent(state: ChatState) -> ChatState:
         state["steps"].append("Cancelled pending order")
         return state
 
-    product_id = state.get("active_product_id")
-    if not product_id:
-        state["response"] = "Which product would you like to order?"
-        state["steps"].append("Order missing active_product_id")
-        return state
+    pending_order = state.get("pending_order_json") or {}
+    if pending_order.get("confirm_customer_info"):
+        if _is_no(state["message"]):
+            pending_order["customer_info"] = {}
+            pending_order.pop("confirm_customer_info", None)
+            pending_order["customer_info_declined"] = True
+            state["pending_order_json"] = pending_order
+            state["response"] = _missing_message(list(CUSTOMER_FIELDS))
+            state["steps"].append("Previous customer info declined")
+            return state
 
+        extracted_for_confirmation = _extract_order_fields(state["message"])
+        if any(extracted_for_confirmation.get("customer_info", {}).values()):
+            pending_order.pop("confirm_customer_info", None)
+        elif _is_yes(state["message"]):
+            pending_order.pop("confirm_customer_info", None)
+            state["pending_order_json"] = pending_order
+        else:
+            state["pending_order_json"] = pending_order
+            state["response"] = _customer_info_confirmation_message(pending_order["customer_info"])
+            state["steps"].append("Awaiting previous customer info confirmation")
+            return state
+
+    extracted = _extract_order_fields(state["message"])
+    extracted["items"] = _extract_mentioned_items(state, extracted.get("quantity"))
     order = _merge_order_data(
         state.get("pending_order_json") or {},
-        _extract_order_fields(state["message"]),
+        extracted,
     )
+
+    product_id = state.get("active_product_id")
+    wants_distinct_products = _wants_multiple_distinct_products(state["message"])
+    if wants_distinct_products and not order.get("items"):
+        state["pending_order_json"] = order
+        quantity = int(order.get("quantity") or 2)
+        state["response"] = f"Which {quantity} products would you like to order?"
+        state["steps"].append("Order missing multiple product selection")
+        return state
+
+    if not product_id and not order.get("items"):
+        state["response"] = "Which product would you like to order?"
+        state["steps"].append("Order missing product selection")
+        return state
     if state.get("delivery_city"):
         order["customer_info"]["city"] = state["delivery_city"]
     if state.get("delivery_address"):
@@ -220,6 +441,16 @@ def order_agent(state: ChatState) -> ChatState:
 
     missing = _missing_customer_fields(order["customer_info"])
     if missing:
+        if not order.get("customer_info_declined"):
+            previous_customer_info = _latest_session_customer_info(state)
+            if previous_customer_info:
+                order["customer_info"] = previous_customer_info
+                order["confirm_customer_info"] = True
+                state["pending_order_json"] = order
+                state["response"] = _customer_info_confirmation_message(previous_customer_info)
+                state["steps"].append("Asked to confirm previous customer info")
+                return state
+
         state["pending_order_json"] = order
         state["response"] = _missing_message(missing)
         state["steps"].append(f"Order pending missing fields: {', '.join(missing)}")
@@ -228,8 +459,6 @@ def order_agent(state: ChatState) -> ChatState:
     payload = {
         "shop_id": state["shop_id"],
         "session_id": state["session_id"],
-        "product_id": product_id,
-        "quantity": int(order.get("quantity") or 1),
         "customer_info": {
             "name": order["customer_info"]["name"],
             "phone": order["customer_info"]["phone"],
@@ -237,12 +466,19 @@ def order_agent(state: ChatState) -> ChatState:
             "delivery_address": order["customer_info"]["delivery_address"],
         },
     }
+    if order.get("items"):
+        payload["items"] = order["items"]
+    else:
+        payload["product_id"] = product_id
+        payload["quantity"] = int(order.get("quantity") or 1)
 
     response = None
     try:
         backend_response = backend_client.create_order(payload)
         state["pending_order_json"] = None
         state["response"] = backend_response.get("message") or "Your order has been created successfully."
+        if backend_response.get("total_price") is not None:
+            state["response"] = f"{state['response']} Total: {backend_response['total_price']} MAD."
         state["steps"].append("Created order through backend")
     except requests.HTTPError as exc:
         response = exc.response

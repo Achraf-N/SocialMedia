@@ -50,7 +50,7 @@ Routing rules:
 - show my shops, list my shops, list shop, what shops do I have, what shops are available, my stores -> list_shops
 - select/use/choose/switch/work on shop -> select_shop
 - shop summary, shop overview, business overview, how is my shop doing -> shop_summary
-- show products, list products, products available, what products are in this shop, inventory, stock list, show stock -> list_products
+- show products, list products, products available, most expensive product, cheapest product, what products are in this shop, inventory, stock list, show stock -> list_products
 - add product, create new product, new product -> add_product
 - update product, edit product, change product info/description -> update_product
 - set/increase/decrease stock, out of stock, update stock -> update_stock

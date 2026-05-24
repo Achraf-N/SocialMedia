@@ -1,5 +1,5 @@
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.core.database import (
     categories_collection,
@@ -12,6 +12,7 @@ from app.models.common import now_utc, oid
 from app.core.dependencies import get_shop_by_id
 from app.models.shop_model import ShopCreate, ShopPublicResponse, ShopResponse, ShopUpdate
 from app.views.serializers import serialize_document, serialize_documents, serialize_shop_public
+from app.core.storage import upload_shop_logo
 
 router = APIRouter(prefix="/shops", tags=["shops"])
 
@@ -129,6 +130,35 @@ def update_shop(
 
     if result.matched_count == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shop not found")
+
+    return serialize_document(shops_collection.find_one({"_id": shop_object_id}))
+
+
+@router.put("/{shop_id}/logo", response_model=ShopResponse)
+def update_shop_logo(
+    shop_id: str,
+    file: UploadFile = File(...),
+    owner: dict = Depends(get_current_owner),
+) -> dict:
+    try:
+        shop_object_id = oid(shop_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    shop = shops_collection.find_one({"_id": shop_object_id, "owner_id": owner["_id"]})
+    if not shop:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shop not found")
+
+    logo_url = upload_shop_logo(
+        file=file,
+        owner_id=str(owner["_id"]),
+        shop_id=shop_id,
+    )
+
+    shops_collection.update_one(
+        {"_id": shop_object_id},
+        {"$set": {"logo_url": logo_url, "updated_at": now_utc()}},
+    )
 
     return serialize_document(shops_collection.find_one({"_id": shop_object_id}))
 

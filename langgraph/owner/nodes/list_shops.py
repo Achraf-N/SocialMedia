@@ -17,7 +17,10 @@ def list_shops_node(state: OwnerChatState) -> OwnerChatState:
     if not shops:
         state["response"] = "You do not have any shops yet."
     else:
-        lines = [str(shop.get("name") or "Unnamed shop") for shop in shops]
+        lines = [
+            f"{index}. {shop.get('name') or 'Unnamed shop'}"
+            for index, shop in enumerate(shops, start=1)
+        ]
         state["response"] = "Your shops: " + "; ".join(lines)
     state["steps"].append("Listed owner shops")
     return state
