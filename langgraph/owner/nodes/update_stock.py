@@ -1,60 +1,79 @@
 """Update product stock node."""
 
-import re
-
-from owner import owner_backend_client
-from owner.nodes import backend_result_message, is_error, require_shop
+from owner import product_service
+from owner.nodes import backend_result_message, is_error
+from owner.nodes.product_helpers import (
+    pop_matching_confirmation,
+    product_id,
+    product_name,
+    resolve_single_product,
+    router_payload,
+    set_pending_confirmation,
+)
 from owner.owner_state import OwnerChatState
 
 
-def _extract_stock_update(message: str) -> dict:
-    data = {}
-    name_patterns = [
-        r"set\s+(.+?)\s+stock\s+to\s+\d+",
-        r"increase\s+(.+?)\s+stock\s+by\s+\d+",
-        r"decrease\s+(.+?)\s+stock\s+by\s+\d+",
-        r"(.+?)\s+is\s+out\s+of\s+stock",
-    ]
-    for pattern in name_patterns:
-        match = re.search(pattern, message, re.IGNORECASE)
-        if match:
-            data["product_query"] = match.group(1).strip(" ,.")
-            break
-    set_match = re.search(r"\bstock\s+to\s+(\d+)\b", message, re.IGNORECASE)
-    inc_match = re.search(r"\bincrease\b.+?\bby\s+(\d+)\b", message, re.IGNORECASE)
-    dec_match = re.search(r"\bdecrease\b.+?\bby\s+(\d+)\b", message, re.IGNORECASE)
-    if set_match:
-        data["operation"] = "set"
-        data["quantity"] = int(set_match.group(1))
-    elif inc_match:
-        data["operation"] = "increase"
-        data["quantity"] = int(inc_match.group(1))
-    elif dec_match:
-        data["operation"] = "decrease"
-        data["quantity"] = int(dec_match.group(1))
-    elif "out of stock" in message.lower():
-        data["operation"] = "set"
-        data["quantity"] = 0
-    return data
-
-
 def update_stock_node(state: OwnerChatState) -> OwnerChatState:
-    if not require_shop(state):
-        return state
+    pending = pop_matching_confirmation(state, "update_stock")
+    if pending:
+        payload = pending.get("payload") or {}
+        operation = payload.get("stock_operation") or {}
+        result = product_service.update_stock(
+            pending["shop_id"],
+            pending["product_id"],
+            operation.get("type"),
+            operation.get("quantity"),
+        )
+        return _finish_stock_update(state, result, pending.get("product_name"))
 
-    data = _extract_stock_update(state["message"])
-    missing = []
-    if not data.get("product_query"):
-        missing.append("product")
-    if "operation" not in data or "quantity" not in data:
-        missing.append("stock update")
-    if missing:
-        state["response"] = "Please specify " + ", ".join(missing) + "."
+    payload = router_payload(state)
+    if state.get("confidence", 0.0) < 0.70:
+        state["response"] = "Please clarify the stock change."
         state["needs_clarification"] = True
-        state["steps"].append("Update stock unclear")
         return state
 
-    result = owner_backend_client.update_product_stock(state["selected_shop_id"], data["product_query"], data)
-    state["response"] = backend_result_message(result, "Stock updated.")
-    state["steps"].append("Update stock failed" if is_error(result) else "Updated stock")
+    operation = payload.get("stock_operation") or {}
+    op_type = operation.get("type")
+    quantity = operation.get("quantity")
+    if op_type not in {"set", "increment", "decrement"} or quantity is None:
+        state["response"] = "Please specify the stock operation and quantity."
+        state["needs_clarification"] = True
+        return state
+
+    product = resolve_single_product(state)
+    if not product:
+        return state
+
+    if op_type == "set" and int(quantity) == 0 and "out of stock" not in state["message"].lower() and "unavailable" not in state["message"].lower():
+        set_pending_confirmation(
+            state,
+            "update_stock",
+            product,
+            payload,
+            f"Please confirm: set {product_name(product)} stock to 0?",
+        )
+        state["steps"].append("Stock zero requires confirmation")
+        return state
+
+    result = product_service.update_stock(state["selected_shop_id"], product_id(product), op_type, int(quantity))
+    return _finish_stock_update(state, result, product_name(product))
+
+
+def _finish_stock_update(state: OwnerChatState, result: dict, name: str | None) -> OwnerChatState:
+    if is_error(result):
+        state["response"] = backend_result_message(result, "Stock could not be updated.")
+        state["steps"].append("Update stock failed")
+        return state
+    product = result.get("product") if isinstance(result, dict) else {}
+    product = product or {}
+    display_name = name or product.get("name") or "the product"
+    stock = product.get("stock")
+    state["last_product"] = {
+        "id": product.get("id"),
+        "name": product.get("name") or display_name,
+        "price": product.get("price"),
+        "stock": stock,
+    }
+    state["response"] = f"Done. {display_name} stock is now {stock}."
+    state["steps"].append("Updated stock")
     return state

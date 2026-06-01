@@ -19,8 +19,19 @@ def list_products_node(state: OwnerChatState) -> OwnerChatState:
         return state
 
     products = list_from_response(data, "products")
+    if "out of stock" in state["message"].lower():
+        products = [product for product in products if int(product.get("stock") or 0) == 0]
+    state["last_products"] = products
+    if products:
+        first = products[0]
+        state["last_product"] = {
+            "id": first.get("id") or first.get("_id"),
+            "name": first.get("name"),
+            "price": first.get("price"),
+            "stock": first.get("stock"),
+        }
     if not products:
-        state["response"] = "No products found for this shop."
+        state["response"] = "No matching products found for this shop."
     else:
         message = state["message"].lower()
         if "most expensive" in message or "highest price" in message:

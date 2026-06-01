@@ -1,40 +1,68 @@
 """Update product metadata node."""
 
-import re
-
-from owner import owner_backend_client
-from owner.nodes import backend_result_message, is_error, require_shop
+from owner import product_service
+from owner.nodes import backend_result_message, is_error
+from owner.nodes.product_helpers import product_id, product_name, resolve_single_product, router_payload
 from owner.owner_state import OwnerChatState
 
 
-def _extract_update_product(message: str) -> tuple[str | None, dict]:
-    product_match = re.search(r"(?:update product|edit product|change product info)\s+(.+?)(?=\s+description\b|\s+category\b|\s+brand\b|$)", message, re.IGNORECASE)
-    product_query = product_match.group(1).strip(" ,.") if product_match else None
-    update_data = {}
-    for field in ("description", "category", "brand"):
-        match = re.search(rf"\b{field}\s+(.+?)(?=\s+description\b|\s+category\b|\s+brand\b|$)", message, re.IGNORECASE)
-        if match:
-            update_data[field] = match.group(1).strip(" ,.")
-    return product_query, update_data
+UPDATABLE_FIELDS = {"name", "description", "category", "available", "sizes", "colors", "images"}
 
 
 def update_product_node(state: OwnerChatState) -> OwnerChatState:
-    if not require_shop(state):
-        return state
-
-    product_query, update_data = _extract_update_product(state["message"])
-    missing = []
-    if not product_query:
-        missing.append("product")
-    if not update_data:
-        missing.append("fields to update")
-    if missing:
-        state["response"] = "Please specify " + ", ".join(missing) + "."
+    payload = router_payload(state)
+    if state.get("confidence", 0.0) < 0.70:
+        state["response"] = "Please clarify the product update."
         state["needs_clarification"] = True
-        state["steps"].append("Update product unclear")
         return state
 
-    result = owner_backend_client.update_product(state["selected_shop_id"], product_query, update_data)
-    state["response"] = backend_result_message(result, "Product updated.")
-    state["steps"].append("Update product failed" if is_error(result) else "Updated product")
+    product = resolve_single_product(state)
+    if not product:
+        return state
+
+    awaiting_field = payload.get("awaiting_field")
+    if awaiting_field == "description":
+        state["pending_field"] = {
+            "intent": "update_product",
+            "field": "description",
+            "target": {
+                "type": "product",
+                "id": product_id(product),
+                "name": product_name(product),
+            },
+        }
+        state["response"] = f"Sure. Send me the description for {product_name(product)}."
+        state["needs_clarification"] = True
+        state["steps"].append("Awaiting product description")
+        return state
+
+    fields = {
+        key: value
+        for key, value in (payload.get("fields") or {}).items()
+        if key in UPDATABLE_FIELDS and value not in (None, "", [], {})
+    }
+    if not fields:
+        state["response"] = "Please specify what to update."
+        state["needs_clarification"] = True
+        state["steps"].append("Update product missing fields")
+        return state
+
+    result = product_service.update_product(state["selected_shop_id"], product_id(product), fields)
+    if is_error(result):
+        state["response"] = backend_result_message(result, "Product could not be updated.")
+        state["steps"].append("Update product failed")
+        return state
+
+    updated = result.get("product") if isinstance(result, dict) else {}
+    updated = updated or {}
+    state["last_product"] = {
+        "id": updated.get("id"),
+        "name": updated.get("name") or fields.get("name") or product_name(product),
+        "price": updated.get("price"),
+        "stock": updated.get("stock"),
+    }
+    state["response"] = f"Done. Updated {state['last_product']['name']}."
+    if set(fields) == {"description"}:
+        state["response"] = f"Done. I updated the description for {state['last_product']['name']}."
+    state["steps"].append("Updated product")
     return state

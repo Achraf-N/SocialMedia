@@ -17,6 +17,14 @@ def run_owner_chat(owner_id: str, message: str) -> dict:
         "response": None,
         "steps": [],
         "extracted_data": {},
+        "router_output": {},
+        "pending_confirmation": {},
+        "pending_product_create": {},
+        "pending_action": None,
+        "pending_field": None,
+        "response_prefix": None,
+        "last_product": {},
+        "last_products": [],
         "confidence": 0.0,
         "needs_clarification": False,
     }
@@ -29,4 +37,6 @@ def run_owner_chat(owner_id: str, message: str) -> dict:
         "current_shop_id": final_state.get("current_shop_id"),
         "current_shop_name": final_state.get("current_shop_name"),
         "steps": final_state["steps"],
+        "pending_action": final_state.get("pending_action"),
+        "pending_field": final_state.get("pending_field"),
     }

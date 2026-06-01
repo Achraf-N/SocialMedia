@@ -1,42 +1,79 @@
 """Update product price node."""
 
-import re
-
-from owner import owner_backend_client
-from owner.nodes import backend_result_message, is_error, require_shop
+from owner import product_service
+from owner.nodes import backend_result_message, is_error
+from owner.nodes.product_helpers import (
+    format_money,
+    pop_matching_confirmation,
+    product_id,
+    product_name,
+    resolve_single_product,
+    router_payload,
+    set_pending_confirmation,
+)
 from owner.owner_state import OwnerChatState
 
 
-def _extract_price_update(message: str) -> dict:
-    patterns = [
-        r"change\s+(.+?)\s+price\s+to\s+(\d+(?:\.\d+)?)",
-        r"set\s+price\s+of\s+(.+?)\s+to\s+(\d+(?:\.\d+)?)",
-        r"update\s+price\s+of\s+(.+?)\s+to\s+(\d+(?:\.\d+)?)",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, message, re.IGNORECASE)
-        if match:
-            return {"product_query": match.group(1).strip(" ,."), "price": float(match.group(2))}
-    return {}
-
-
 def update_price_node(state: OwnerChatState) -> OwnerChatState:
-    if not require_shop(state):
-        return state
+    pending = pop_matching_confirmation(state, "update_price")
+    if pending:
+        payload = pending.get("payload") or {}
+        fields = payload.get("fields") or {}
+        result = product_service.update_price(
+            pending["shop_id"],
+            pending["product_id"],
+            fields.get("price"),
+            fields.get("currency"),
+        )
+        return _finish_price_update(state, result, pending.get("product_name"), fields)
 
-    data = _extract_price_update(state["message"])
-    missing = []
-    if not data.get("product_query"):
-        missing.append("product")
-    if "price" not in data:
-        missing.append("price")
-    if missing:
-        state["response"] = "Please specify " + ", ".join(missing) + "."
+    payload = router_payload(state)
+    if state.get("confidence", 0.0) < 0.70:
+        state["response"] = "Please clarify the price change."
         state["needs_clarification"] = True
-        state["steps"].append("Update price unclear")
+        return state
+    fields = payload.get("fields") or {}
+    if fields.get("price") is None:
+        state["response"] = "Please specify the new price."
+        state["needs_clarification"] = True
         return state
 
-    result = owner_backend_client.update_product_price(state["selected_shop_id"], data["product_query"], data["price"])
-    state["response"] = backend_result_message(result, "Price updated.")
-    state["steps"].append("Update price failed" if is_error(result) else "Updated price")
+    product = resolve_single_product(state)
+    if not product:
+        return state
+
+    old_price = float(product.get("price") or 0)
+    new_price = float(fields["price"])
+    if old_price > 0 and abs(new_price - old_price) / old_price > 0.5:
+        set_pending_confirmation(
+            state,
+            "update_price",
+            product,
+            payload,
+            f"Please confirm: change {product_name(product)} price from {format_money(old_price, fields.get('currency'))} to {format_money(new_price, fields.get('currency'))}?",
+        )
+        state["steps"].append("Price update requires confirmation")
+        return state
+
+    result = product_service.update_price(state["selected_shop_id"], product_id(product), new_price, fields.get("currency"))
+    return _finish_price_update(state, result, product_name(product), fields)
+
+
+def _finish_price_update(state: OwnerChatState, result: dict, name: str | None, fields: dict) -> OwnerChatState:
+    if is_error(result):
+        state["response"] = backend_result_message(result, "Price could not be updated.")
+        state["steps"].append("Update price failed")
+        return state
+    product = result.get("product") if isinstance(result, dict) else {}
+    product = product or {}
+    display_name = name or product.get("name") or "the product"
+    price = product.get("price", fields.get("price"))
+    state["last_product"] = {
+        "id": product.get("id"),
+        "name": product.get("name") or display_name,
+        "price": price,
+        "stock": product.get("stock"),
+    }
+    state["response"] = f"Done. The {display_name} price is now {format_money(price, fields.get('currency'))}."
+    state["steps"].append("Updated price")
     return state

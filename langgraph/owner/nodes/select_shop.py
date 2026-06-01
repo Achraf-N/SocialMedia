@@ -1,17 +1,17 @@
 """Select active owner shop."""
 
 from owner import owner_backend_client
+from owner.intent_requirements import get_create_product_missing_fields, get_create_product_question
 from owner.nodes import error_message, is_error, list_from_response
 from owner.owner_state import OwnerChatState
 
 
 def _matches(shop: dict, query: str) -> bool:
     query = query.lower().strip()
-    return query in {
-        str(shop.get("id") or "").lower(),
-        str(shop.get("_id") or "").lower(),
-        str(shop.get("name") or "").lower(),
-    } or query in str(shop.get("name") or "").lower()
+    shop_id = str(shop.get("id") or "").lower()
+    object_id = str(shop.get("_id") or "").lower()
+    shop_name = str(shop.get("name") or "").lower()
+    return query in {shop_id, object_id, shop_name} or query in shop_name or (shop_name and shop_name in query)
 
 
 def select_shop_node(state: OwnerChatState) -> OwnerChatState:
@@ -36,6 +36,35 @@ def select_shop_node(state: OwnerChatState) -> OwnerChatState:
     state["selected_shop_name"] = str(selected.get("name") or state["selected_shop_id"])
     state["current_shop_id"] = state["selected_shop_id"]
     state["current_shop_name"] = state["selected_shop_name"]
-    state["response"] = f"Selected shop: {state['selected_shop_name']}."
+    pending_action = state.get("pending_action")
+    if pending_action:
+        state["intent"] = pending_action["intent"]
+        state["router_output"] = pending_action.get("router_output") or state.get("router_output") or {}
+        state["extracted_data"] = {
+            **(state.get("extracted_data") or {}),
+            **(pending_action.get("extracted_data") or {}),
+        }
+        state["pending_action"] = None
+        state["response"] = None
+        state["response_prefix"] = f"Selected shop: {state['selected_shop_name']}."
+        state["needs_clarification"] = False
+        state["steps"].append("Selected owner shop")
+        state["steps"].append(f"Continuing pending action: {state['intent']}")
+        return state
+
+    pending_create = state.get("pending_product_create") or {}
+    if pending_create:
+        payload = {"fields": pending_create, "product_reference": pending_create.get("name")}
+        missing = get_create_product_missing_fields(payload)
+        if missing:
+            state["response"] = (
+                f"Selected shop: {state['selected_shop_name']}.\n\n"
+                + get_create_product_question(missing[0], payload)
+            )
+            state["needs_clarification"] = True
+        else:
+            state["response"] = f"Selected shop: {state['selected_shop_name']}. Send the product details when ready."
+    else:
+        state["response"] = f"Selected shop: {state['selected_shop_name']}."
     state["steps"].append("Selected owner shop")
     return state

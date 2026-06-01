@@ -3,7 +3,7 @@
 import re
 
 from owner import owner_backend_client
-from owner.nodes import backend_result_message, is_error
+from owner.nodes import backend_result_message, is_error, require_shop
 from owner.owner_state import OwnerChatState
 
 
@@ -26,6 +26,9 @@ def _extract_order_update(message: str) -> dict:
 
 
 def update_order_status_node(state: OwnerChatState) -> OwnerChatState:
+    if not require_shop(state):
+        return state
+
     data = {**_extract_order_update(state["message"]), **state.get("extracted_data", {})}
     missing = []
     if not data.get("order_id"):

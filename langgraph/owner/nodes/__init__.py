@@ -7,6 +7,21 @@ from owner import owner_backend_client
 from owner.owner_state import OwnerChatState
 
 
+SHOP_REQUIRED_INTENTS = {
+    "list_products",
+    "get_product",
+    "create_product",
+    "update_product",
+    "delete_product",
+    "update_stock",
+    "update_price",
+    "mark_unavailable",
+    "list_orders",
+    "update_order_status",
+    "shop_summary",
+}
+
+
 def is_error(data: Any) -> bool:
     return isinstance(data, dict) and data.get("ok") is False
 
@@ -87,8 +102,35 @@ def require_shop(state: OwnerChatState) -> bool:
         else:
             state["response"] = "Which shop would you like to manage?"
     state["needs_clarification"] = True
+    store_pending_action_if_shop_missing(state)
     state["steps"].append("Missing selected shop")
     return False
+
+
+def shop_is_selected(state: OwnerChatState) -> bool:
+    return bool(state.get("selected_shop_id") or state.get("current_shop_id"))
+
+
+def store_pending_action_if_shop_missing(state: OwnerChatState) -> bool:
+    intent = state.get("intent")
+    if intent not in SHOP_REQUIRED_INTENTS or shop_is_selected(state):
+        return False
+    state["pending_action"] = {
+        "intent": intent,
+        "router_output": state.get("router_output") or {},
+        "extracted_data": state.get("extracted_data") or {},
+    }
+    state["needs_clarification"] = True
+    state["steps"].append(f"Stored pending action: {intent}")
+    return True
+
+
+def apply_response_prefix(state: OwnerChatState) -> OwnerChatState:
+    prefix = state.get("response_prefix")
+    if prefix and state.get("response"):
+        state["response"] = f"{prefix}\n\n{state['response']}"
+        state["response_prefix"] = None
+    return state
 
 
 def set_current_shop(state: OwnerChatState, shop: dict) -> None:

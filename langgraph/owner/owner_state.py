@@ -1,6 +1,6 @@
 """State definition for the owner management agent."""
 
-from typing import Optional
+from typing import Any, Optional
 from typing_extensions import TypedDict
 
 
@@ -16,5 +16,13 @@ class OwnerChatState(TypedDict):
     response: Optional[str]
     steps: list[str]
     extracted_data: dict
+    router_output: dict
+    pending_confirmation: dict
+    pending_product_create: dict
+    pending_action: Optional[dict[str, Any]]
+    pending_field: Optional[dict[str, Any]]
+    response_prefix: Optional[str]
+    last_product: dict
+    last_products: list[dict]
     confidence: float
     needs_clarification: bool

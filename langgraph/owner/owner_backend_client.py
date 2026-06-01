@@ -146,6 +146,29 @@ def update_product(shop_id, product_id, update_data):
     return _safe_request("PATCH", f"/api/shops/{shop_id}/products/{product_id}", json=update_data)
 
 
+def get_product(shop_id, product_id):
+    modules = _backend_modules()
+    owner_obj_id = _internal_owner_id()
+    if modules and owner_obj_id:
+        product = _find_product(shop_id, product_id, owner_obj_id, modules)
+        if not product:
+            return {"ok": False, "error": "Product not found"}
+        return {"product": modules["serialize_product"](product)}
+    return _safe_request("GET", f"/api/shops/{shop_id}/products/{product_id}")
+
+
+def delete_product(shop_id, product_id):
+    modules = _backend_modules()
+    owner_obj_id = _internal_owner_id()
+    if modules and owner_obj_id:
+        product = _find_product(shop_id, product_id, owner_obj_id, modules)
+        if not product:
+            return {"ok": False, "error": "Product not found"}
+        modules["products"].delete_one({"_id": product["_id"]})
+        return {"message": "Product deleted.", "product": modules["serialize_product"](product)}
+    return _safe_request("DELETE", f"/api/shops/{shop_id}/products/{product_id}")
+
+
 def update_product_stock(shop_id, product_id, stock_update):
     modules = _backend_modules()
     owner_obj_id = _internal_owner_id()
