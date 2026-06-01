@@ -33,6 +33,16 @@ def serialize_product(document: dict[str, Any] | None) -> dict[str, Any] | None:
     serialized = serialize_document(document)
     if serialized is None:
         return None
+    for key, default in {
+        "description": "",
+        "category": "",
+        "stock": 0,
+        "delivery_time": "",
+        "brand": "",
+        "variants": [],
+        "available": True,
+    }.items():
+        serialized.setdefault(key, default)
     serialized["image"] = serialized.get("image") or ""
     serialized.pop("owner_id", None)
     serialized.pop("shop_id", None)

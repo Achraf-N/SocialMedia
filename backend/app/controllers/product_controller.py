@@ -51,6 +51,8 @@ router = APIRouter(prefix="/shops/{shop_id}/products", tags=["products"])
 
 
 def _upsert_category(owner_id: ObjectId, shop_id: ObjectId, category_name: str) -> None:
+    if not category_name:
+        return
     now = now_utc()
     categories_collection.update_one(
         {"owner_id": owner_id, "shop_id": shop_id, "name": category_name},

@@ -8,12 +8,12 @@ from app.models.shop_model import ShopPublicResponse
 class ProductCreate(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     price: float = Field(ge=0)
-    description: str = Field(min_length=1)
+    description: str = ""
     available: bool = True
-    category: str = Field(min_length=1, max_length=100)
-    stock: int = Field(ge=0)
-    delivery_time: str = Field(min_length=1, max_length=80)
-    brand: str = Field(min_length=1, max_length=120)
+    category: str = Field(default="", max_length=100)
+    stock: int = Field(default=0, ge=0)
+    delivery_time: str = Field(default="", max_length=80)
+    brand: str = Field(default="", max_length=120)
     variants: list[str] = Field(default_factory=list)
 
 
@@ -33,12 +33,12 @@ class ProductResponse(BaseModel):
     id: str
     name: str
     price: float
-    description: str
+    description: str = ""
     available: bool
-    category: str
-    stock: int
-    delivery_time: str
-    brand: str
+    category: str = ""
+    stock: int = 0
+    delivery_time: str = ""
+    brand: str = ""
     variants: list[str]
     image: str = ""
     created_at: datetime

@@ -4,10 +4,10 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.core.database import owners_collection, shops_collection
+from app.core.dependencies import get_current_owner
 
 
 CURRENT_FILE = Path(__file__).resolve()
@@ -44,6 +44,7 @@ class OwnerChatResponse(BaseModel):
 @router.post("/owner/chat", response_model=OwnerChatResponse)
 def owner_chat(
     request: OwnerChatRequest,
+    owner: dict = Depends(get_current_owner),
 ) -> OwnerChatResponse:
     if run_owner_chat is None:
         raise HTTPException(
@@ -54,7 +55,6 @@ def owner_chat(
     try:
         from owner import owner_backend_client
 
-        owner = _get_test_owner()
         owner_context = owner_backend_client.set_current_owner_id(str(owner["_id"]))
         try:
             result = run_owner_chat(owner_id=str(owner["_id"]), message=request.message)
@@ -75,17 +75,3 @@ def owner_chat(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Owner chat service failed",
         )
-
-
-def _get_test_owner() -> dict:
-    """Temporary no-auth owner lookup for local testing."""
-    for owner in owners_collection.find({}):
-        if shops_collection.find_one({"owner_id": owner["_id"]}):
-            return owner
-    owner = owners_collection.find_one({})
-    if owner:
-        return owner
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="No owner found for owner chat testing",
-    )
