@@ -6,6 +6,7 @@ from typing import Optional, List
 from app.controllers import (
     auth_controller,
     category_controller,
+    dashboard_controller,
     order_controller,
     owner_chat_controller,
     product_controller,
@@ -32,7 +33,12 @@ app = FastAPI(title=settings.app_name)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=[
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://unexceptable-festally-gillian.ngrok-free.dev",
+    "https://sellpilot-front.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -184,6 +190,7 @@ def chat_health() -> dict:
 
 
 app.include_router(auth_controller.router, prefix="/api")
+app.include_router(dashboard_controller.router, prefix="/api")
 app.include_router(shop_controller.router, prefix="/api")
 app.include_router(product_controller.router, prefix="/api")
 app.include_router(category_controller.router, prefix="/api")
