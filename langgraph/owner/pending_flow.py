@@ -95,12 +95,17 @@ def _empty_create_output() -> dict[str, Any]:
 
 def _extract_create_fields(message: str, output: dict) -> None:
     fields = output["fields"]
+    explicit_new_product = re.search(
+        r"\bcreate\s+new\s+product\s+(.+?)(?=\s+(?:for|price|at)\s+\d|\s+\d+(?:\.\d+)?\s*(?:dh|mad|usd|eur|€|\$)\b|\s+stock\b|\s+sizes?\b|\s+colors?\b|\s+category\b|$)",
+        message,
+        re.IGNORECASE,
+    )
     explicit_called = re.search(
         r"(?:create|add|new product)\s+(?:a\s+|an\s+|new\s+)?product\s+(?:called|named)\s+(.+?)(?=\s+(?:for|price|at)\s+\d|\s+\d+(?:\.\d+)?\s*(?:dh|mad|usd|eur|€|\$)\b|\s+stock\b|\s+sizes?\b|\s+colors?\b|\s+category\b|$)",
         message,
         re.IGNORECASE,
     )
-    name_match = explicit_called or re.search(
+    name_match = explicit_called or explicit_new_product or re.search(
         r"(?:add|create|new product)\s+(?:a\s+|an\s+|product\s+)?(.+?)(?=\s+(?:for|price|at)\s+\d|\s+\d+(?:\.\d+)?\s*(?:dh|mad|usd|eur|€|\$)\b|\s+stock\b|\s+sizes?\b|\s+colors?\b|\s+category\b|$)",
         message,
         re.IGNORECASE,
@@ -113,7 +118,7 @@ def _extract_create_fields(message: str, output: dict) -> None:
         )
     if name_match:
         name = name_match.group(1).strip(" ,.")
-        if explicit_called or not _is_generic_product_name(name):
+        if explicit_called or explicit_new_product or not _is_generic_product_name(name):
             fields["name"] = name
             output["product_reference"] = name
             _add_known_color(fields, name)
@@ -121,9 +126,11 @@ def _extract_create_fields(message: str, output: dict) -> None:
     price_match = re.search(r"(?:for|price|at)\s+(?:is\s+|:)?(\d+(?:\.\d+)?)\s*(dh|mad|usd|eur|€|\$)?", message, re.IGNORECASE)
     if not price_match:
         price_match = re.search(r"^\s*(\d+(?:\.\d+)?)\s*(dh|mad|usd|eur|€|\$)\b", message, re.IGNORECASE)
+    if not price_match:
+        price_match = re.search(r"^\s*(\d+(?:\.\d+)?)\s*$", message, re.IGNORECASE)
     if price_match:
         fields["price"] = float(price_match.group(1))
-        fields["currency"] = price_match.group(2) or None
+        fields["currency"] = price_match.group(2) if len(price_match.groups()) > 1 else None
 
     stock_match = re.search(r"\bstock\s+(\d+)\b", message, re.IGNORECASE)
     if stock_match:

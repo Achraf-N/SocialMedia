@@ -261,7 +261,7 @@ def _route_non_product(text: str, lower: str) -> dict | None:
         intent = "greeting"
     elif _contains(lower, ["help", "what can you do", "how can you help me"]):
         intent = "help"
-    elif _contains(lower, ["show my shops", "show shops", "list my shops", "list shops", "my stores", "my shops"]):
+    elif _contains(lower, ["show my shops", "show shops", "list my shops", "list shops", "what shops do i have", "my stores", "my shops"]):
         intent = "list_shops"
     elif _contains(lower, ["select ", "use shop ", "choose shop ", "switch to ", "work on this shop", "choose shop id"]):
         intent = "select_shop"
@@ -519,7 +519,7 @@ def _mentioned_product_field(lower: str) -> str | None:
 
 
 def _extract_inline_description(text: str) -> str | None:
-    match = re.search(r"\bdescription\s+(?:is|:|to)\s+(.+)$", text, re.IGNORECASE)
+    match = re.search(r"\bdescription\s*(?:is|:|to)\s+(.+)$", text, re.IGNORECASE)
     if not match:
         match = re.search(r"\b(?:add|update|set|change)\s+(?:a\s+)?description\s+(.+)$", text, re.IGNORECASE)
     if not match:
@@ -529,15 +529,20 @@ def _extract_inline_description(text: str) -> str | None:
 
 
 def _extract_create_fields(text: str, output: dict) -> None:
+    explicit_new_product = re.search(
+        r"\bcreate\s+new\s+product\s+(.+?)(?=\s+(?:for|price|at)\s+\d|\s+\d+(?:\.\d+)?\s*(?:dh|mad|usd|eur|€|\$)\b|\s+stock\b|\s+sizes?\b|\s+colors?\b|\s+category\b|$)",
+        text,
+        re.IGNORECASE,
+    )
     explicit_called = re.search(
         r"(?:create|add|new product)\s+(?:a\s+|an\s+|new\s+)?product\s+(?:called|named)\s+(.+?)(?=\s+(?:for|price|at)\s+\d|\s+\d+(?:\.\d+)?\s*(?:dh|mad|usd|eur|€|\$)\b|\s+stock\b|\s+sizes?\b|\s+colors?\b|\s+category\b|$)",
         text,
         re.IGNORECASE,
     )
-    name_match = explicit_called or re.search(r"(?:add|create|new product)\s+(?:a\s+|an\s+|product\s+)?(.+?)(?=\s+(?:for|price|at)\s+\d|\s+\d+(?:\.\d+)?\s*(?:dh|mad|usd|eur|€|\$)\b|\s+stock\b|\s+sizes?\b|\s+colors?\b|\s+category\b|$)", text, re.IGNORECASE)
+    name_match = explicit_called or explicit_new_product or re.search(r"(?:add|create|new product)\s+(?:a\s+|an\s+|product\s+)?(.+?)(?=\s+(?:for|price|at)\s+\d|\s+\d+(?:\.\d+)?\s*(?:dh|mad|usd|eur|€|\$)\b|\s+stock\b|\s+sizes?\b|\s+colors?\b|\s+category\b|$)", text, re.IGNORECASE)
     if name_match:
         name = name_match.group(1).strip(" ,.")
-        if explicit_called or not _is_generic_product_name(name):
+        if explicit_called or explicit_new_product or not _is_generic_product_name(name):
             output["fields"]["name"] = name
             output["product_reference"] = name
 
